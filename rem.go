@@ -15,7 +15,11 @@ var (
 	version = "dev"
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
-Usage: rem [-h/--help | -v/--version | -d/--directory | -l/--list | --t/--set-trash | `
+Usage: rem [<option>]
+       rem fileToTrash
+       rem -u/--undo fileToRestore
+Options:
+   -h/--help | -v/--version | -d/--directory | -l/--list | --t/--set-trash`
 	home, _      = os.UserHomeDir()
 	trashDir     = home + "/.remTrash"
 	logFileName  = ".trash.log"
@@ -23,9 +27,6 @@ Usage: rem [-h/--help | -v/--version | -d/--directory | -l/--list | --t/--set-tr
 )
 
 func main() {
-	//for key, value := range parseLogFile() {
-	//	fmt.Println("Key:", key, "Value:", value)
-	//}
 	if len(os.Args) == 1 {
 		handleErrStr("too few arguments")
 		fmt.Println(helpMsg)
@@ -59,7 +60,7 @@ func main() {
 	}
 	if hasOption, _ := argsHaveOptionLong("empty-trash"); hasOption {
 		color.Red("Warning, permanently deleting these files in trash: ")
-		fmt.Println(listFilesInTrash())
+		printFormattedList(listFilesInTrash())
 		if promptBool("Confirm delete?") {
 			emptyTrash()
 		}
@@ -98,24 +99,6 @@ func main() {
 }
 
 func listFilesInTrash() []string {
-	//file, err := os.Open(trashDir)
-	//if err != nil {
-	//	handleErrStr("Could not open " + trashDir)
-	//	handleErr(err)
-	//	return nil
-	//}
-	//defer func() {
-	//	err = file.Close()
-	//	if err != nil {
-	//		handleErr(err)
-	//	}
-	//}()
-	//list, err := file.Readdirnames(0) // >=0 to read all files and folders
-	//if err != nil {
-	//	handleErrStr("An error occurred while trying to list files in " + trashDir)
-	//	handleErr(err)
-	//}
-	//return list
 	m := parseLogFile()
 	s := make([]string, 0, 10)
 	for key, _ := range m {
@@ -129,13 +112,13 @@ func emptyTrash() {
 }
 
 func parseLogFile() map[string]string {
+	ensureTrashDir()
 	file, err := os.OpenFile(trashDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
 		handleErr(err)
 		return nil
 	}
 	defer file.Close()
-	//var lines map[string]string
 	lines := make(map[string]string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -149,12 +132,9 @@ func parseLogFile() map[string]string {
 }
 
 func setLogFile(m map[string]string) {
-	//err := os.Truncate(trashDir+"/"+logFileName, 0)
-	//if err != nil {
-	//	handleErr(err)
-	//	return
-	//}
-	f, err := os.OpenFile(trashDir+"/"+logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644) // truncate to empty, create if not exist, write only
+	//f, err := os.OpenFile(trashDir+"/"+logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644) // truncate to empty, create if not exist, write only
+	ensureTrashDir()
+	f, err := os.Create(trashDir + "/" + logFileName)
 	if err != nil {
 		handleErr(err)
 		return
@@ -205,12 +185,10 @@ func trashFile(path string) {
 		return
 	}
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		// file specified does not exist
 		handleErrStr(color.YellowString(path) + " does not exist")
 		return
 	}
 	if i, err := os.Stat(toMoveTo); !(os.IsNotExist(err)) {
-		// file of same name in trash
 		handleErrStr("file with name " + color.YellowString(i.Name()) + " already in ~/.remTrash at " + color.YellowString(toMoveTo)) // as helpful as possible
 		return
 	}
@@ -219,25 +197,24 @@ func trashFile(path string) {
 		handleErr(err)
 		return
 	}
-	//f, err := os.OpenFile(trashDir+"/"+logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	//if err != nil {
-	//	handleErr(err)
-	//	return
-	//}
-	//defer f.Close()
-	//if _, err = f.WriteString(path + logSeparator + toMoveTo + "\n"); err != nil {
-	//	handleErr(err)
-	//	return
-	//}
 	m := parseLogFile()
 	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
 	setLogFile(m)
-	fmt.Println("Trashed " + color.YellowString(path) + " to " + color.YellowString(toMoveTo) + "\nUndo using " + color.YellowString("rem --undo "+path))
+	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo "+path))
 }
 
 func ensureTrashDir() {
 	if _, err := os.Stat(trashDir); os.IsNotExist(err) {
 		err = os.Mkdir(trashDir, os.ModePerm)
+		if err != nil {
+			handleErr(err)
+		}
+	}
+}
+
+func ensureLogFile() {
+	if _, err := os.Stat(trashDir + "/" + logFileName); os.IsNotExist(err) {
+		_, err = os.Create(trashDir + "/" + logFileName)
 		if err != nil {
 			handleErr(err)
 		}
