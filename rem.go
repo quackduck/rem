@@ -15,17 +15,17 @@ var (
 	version = "dev"
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
-Usage: rem [<option>]
-       rem [-t/--set-trash <dir>] [-u/--undo | --permanent] file
+Usage: rem [-t/--set-trash <dir>] [--permanent | -u/--undo] file
+       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
-   -t/--set-trash <dir>   set trash to dir and continue
    -u/--undo              restore a file
+   -l/--list              list files in trash
+   --empty                empty the trash permanently
    --permanent            delete a file permanently
-<option> can be one of:
-   -h/--help              print this help message
-   -v/--version           print Rem version
    -d/--directory         show path to trash
-   -l/--list              list files in trash`
+   -t/--set-trash <dir>   set trash to dir and continue
+   -h/--help              print this help message
+   -v/--version           print Rem version`
 	home, _      = os.UserHomeDir()
 	trashDir     = home + "/.remTrash"
 	logFileName  = ".trash.log"
@@ -109,7 +109,7 @@ func main() {
 func listFilesInTrash() []string {
 	m := parseLogFile()
 	s := make([]string, 0, 10)
-	for key, _ := range m {
+	for key := range m {
 		s = append(s, key)
 	}
 	return s
@@ -213,20 +213,16 @@ func trashFile(path string) {
 }
 
 func ensureTrashDir() {
-	if _, err := os.Stat(trashDir); os.IsNotExist(err) {
+	i, err := os.Stat(trashDir)
+	if os.IsNotExist(err) {
 		err = os.Mkdir(trashDir, os.ModePerm)
 		if err != nil {
 			handleErr(err)
 		}
 	}
-}
-
-func ensureLogFile() {
-	if _, err := os.Stat(trashDir + "/" + logFileName); os.IsNotExist(err) {
-		_, err = os.Create(trashDir + "/" + logFileName)
-		if err != nil {
-			handleErr(err)
-		}
+	if !i.IsDir() {
+		permanentlyDeleteFile(trashDir) // not a dir so delete
+		ensureTrashDir()                // then make it
 	}
 }
 
