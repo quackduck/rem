@@ -16,10 +16,17 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [<option>]
-       rem fileToTrash
-       rem -u/--undo fileToRestore
+       rem [-t/--set-trash <dir>] [-u/--undo | --permanent] file
+
 Options:
-   -h/--help | -v/--version | -d/--directory | -l/--list | --t/--set-trash`
+   -t/--set-trash <dir>   set trash to dir and continue
+   -u/--undo              restore a file
+   --permanent            delete a file permanently
+<option> can be one of:
+   -h/--help              print this help message
+   -v/--version           print Rem version
+   -d/--directory         show path to trash
+   -l/--list              list files in trash`
 	home, _      = os.UserHomeDir()
 	trashDir     = home + "/.remTrash"
 	logFileName  = ".trash.log"
@@ -40,7 +47,7 @@ func main() {
 		fmt.Println("Rem " + version)
 		return
 	}
-	if hasOption, _ := argsHaveOption("d", "directory"); hasOption {
+	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(trashDir)
 		return
 	}
@@ -189,7 +196,7 @@ func trashFile(path string) {
 		return
 	}
 	if i, err := os.Stat(toMoveTo); !(os.IsNotExist(err)) {
-		handleErrStr("file with name " + color.YellowString(i.Name()) + " already in ~/.remTrash at " + color.YellowString(toMoveTo)) // as helpful as possible
+		handleErrStr("file with name " + color.YellowString(i.Name()) + " already in trash at " + color.YellowString(toMoveTo)) // as helpful as possible
 		return
 	}
 	err = os.Rename(path, toMoveTo)
