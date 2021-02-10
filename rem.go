@@ -17,7 +17,6 @@ var (
 Rem is a CLI Trash
 Usage: rem [<option>]
        rem [-t/--set-trash <dir>] [-u/--undo | --permanent] file
-
 Options:
    -t/--set-trash <dir>   set trash to dir and continue
    -u/--undo              restore a file
@@ -34,6 +33,7 @@ Options:
 )
 
 func main() {
+	trashDir, _ = filepath.Abs(trashDir)
 	if len(os.Args) == 1 {
 		handleErrStr("too few arguments")
 		fmt.Println(helpMsg)
@@ -45,32 +45,6 @@ func main() {
 	}
 	if hasOption, _ := argsHaveOption("version", "v"); hasOption {
 		fmt.Println("Rem " + version)
-		return
-	}
-	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
-		fmt.Println(trashDir)
-		return
-	}
-	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
-		printFormattedList(listFilesInTrash())
-		return
-	}
-	if hasOption, i := argsHaveOption("set-trash", "t"); hasOption {
-		if !(len(os.Args) > i+1) {
-			handleErrStr("Not enough arguments for --set-trash")
-			return
-		}
-		//fmt.Println("Using " + os.Args[i+1] + " as trash")
-		os.Args = removeElemFromSlice(os.Args, i)
-		main()
-		return
-	}
-	if hasOption, _ := argsHaveOptionLong("empty-trash"); hasOption {
-		color.Red("Warning, permanently deleting these files in trash: ")
-		printFormattedList(listFilesInTrash())
-		if promptBool("Confirm delete?") {
-			emptyTrash()
-		}
 		return
 	}
 	if hasOption, i := argsHaveOptionLong("permanent"); hasOption {
@@ -87,14 +61,41 @@ func main() {
 		}
 		return
 	}
-
+	if hasOption, i := argsHaveOption("set-trash", "t"); hasOption {
+		if !(len(os.Args) > i+1) {
+			handleErrStr("Not enough arguments for --set-trash")
+			return
+		}
+		//fmt.Println("Using " + os.Args[i+1] + " as trash")
+		trashDir = os.Args[i+1]
+		os.Args = removeElemFromSlice(os.Args, i+1) // remove the specified dir too
+		os.Args = removeElemFromSlice(os.Args, i)
+		main()
+		return
+	}
+	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
+		fmt.Println(trashDir)
+		return
+	}
+	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
+		printFormattedList(listFilesInTrash())
+		return
+	}
+	if hasOption, _ := argsHaveOptionLong("empty-trash"); hasOption {
+		color.Red("Warning, permanently deleting these files in trash: ")
+		printFormattedList(listFilesInTrash())
+		if promptBool("Confirm delete?") {
+			emptyTrash()
+		}
+		return
+	}
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
 		if !(len(os.Args) > i+1) {
 			handleErrStr("not enough arguments for --undo")
 			return
 		}
 		for _, filePath := range os.Args[i+1:] {
-			putBack(filePath)
+			restore(filePath)
 		}
 		return
 	}
@@ -156,7 +157,7 @@ func setLogFile(m map[string]string) {
 	}
 }
 
-func putBack(path string) {
+func restore(path string) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		handleErr(err)
@@ -171,7 +172,7 @@ func putBack(path string) {
 			return
 		}
 	} else {
-		handleErrStr("file not in trash or missing put back data")
+		handleErrStr("file not in trash or missing restore data")
 		return
 	}
 	delete(logFile, path)
@@ -195,6 +196,7 @@ func trashFile(path string) {
 		handleErrStr(color.YellowString(path) + " does not exist")
 		return
 	}
+	//TODO: add a timestamp so files can't clash
 	if i, err := os.Stat(toMoveTo); !(os.IsNotExist(err)) {
 		handleErrStr("file with name " + color.YellowString(i.Name()) + " already in trash at " + color.YellowString(toMoveTo)) // as helpful as possible
 		return
