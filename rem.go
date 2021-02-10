@@ -3,10 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -196,10 +198,28 @@ func trashFile(path string) {
 		handleErrStr(color.YellowString(path) + " does not exist")
 		return
 	}
-	//TODO: add a timestamp so files can't clash
-	if i, err := os.Stat(toMoveTo); !(os.IsNotExist(err)) {
-		handleErrStr("file with name " + color.YellowString(i.Name()) + " already in trash at " + color.YellowString(toMoveTo)) // as helpful as possible
-		return
+	i := 0
+	for exists(toMoveTo) { // while it exists (shouldn't) // big fiasco for avoiding clashes and using smallest timestamp possible along with easter eggs
+		if i == 0 {
+			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.Stamp)
+			fmt.Println("Much deleting.")
+		} else if i == 1 { // seconds are the same
+			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMilli)
+			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
+		} else if i == 2 { // milliseconds are same
+			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMicro)
+			fmt.Println("What the actual heck. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
+		} else if i == 3 { // microseconds are same
+			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampNano)
+			fmt.Println("You are a god.")
+		} else { // nano-freaking-seconds aren't enough for this guy
+			fmt.Println("(speechless)")
+			if i == 4 { // seed once
+				rand.Seed(time.Now().UTC().UnixNano())
+			}
+			toMoveTo = trashDir + "/" + filepath.Base(path) + strconv.FormatFloat(rand.Float64(), 'E', -1, 64) // add random stuff at the end
+		}
+		i++
 	}
 	err = os.Rename(path, toMoveTo)
 	if err != nil {
@@ -212,13 +232,20 @@ func trashFile(path string) {
 	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo "+path))
 }
 
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return !(os.IsNotExist(err))
+}
+
 func ensureTrashDir() {
-	i, err := os.Stat(trashDir)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(trashDir, os.ModePerm)
+	i, _ := os.Stat(trashDir)
+	if !exists(trashDir) {
+		err := os.Mkdir(trashDir, os.ModePerm)
 		if err != nil {
 			handleErr(err)
+			return
 		}
+		return
 	}
 	if !i.IsDir() {
 		permanentlyDeleteFile(trashDir) // not a dir so delete
