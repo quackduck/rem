@@ -31,7 +31,7 @@ Options:
 	home, _      = os.UserHomeDir()
 	trashDir     = home + "/.remTrash"
 	logFileName  = ".trash.log"
-	logSeparator = "   ==>   "
+	logSeparator = "\t==>\t"
 )
 
 func main() {
@@ -208,7 +208,7 @@ func trashFile(path string) {
 			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
 		} else if i == 2 { // milliseconds are same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMicro)
-			fmt.Println("What the actual heck. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
+			fmt.Println("What the actual heck. Please contact him.")
 		} else if i == 3 { // microseconds are same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampNano)
 			fmt.Println("You are a god.")

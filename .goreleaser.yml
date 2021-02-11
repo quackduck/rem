@@ -57,4 +57,4 @@ brews:
 
     # Your app's description.
     # Default is empty.
-    description: 'CHANGEME'
+    description: 'Rem is a CLI Trash which makes it ridiculously easy to recover them.'
