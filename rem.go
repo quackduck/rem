@@ -227,6 +227,14 @@ func trashFile(path string) {
 		return
 	}
 	m := parseLogFile()
+	oldPath := path
+	i = 1
+	for ; existsInMap(m, path); i++ { // might be the same path as before
+		path = oldPath + " " + strconv.Itoa(i)
+	}
+	if i == 1 {
+		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
+	}
 	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
 	setLogFile(m)
 	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo "+path))
@@ -235,6 +243,11 @@ func trashFile(path string) {
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return !(os.IsNotExist(err))
+}
+
+func existsInMap(m map[string]string, elem string) bool {
+	_, alreadyExists := m[elem]
+	return alreadyExists
 }
 
 func ensureTrashDir() {
