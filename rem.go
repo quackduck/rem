@@ -83,7 +83,7 @@ func main() {
 		printFormattedList(listFilesInTrash())
 		return
 	}
-	if hasOption, _ := argsHaveOptionLong("empty-trash"); hasOption {
+	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
 		color.Red("Warning, permanently deleting these files in trash: ")
 		printFormattedList(listFilesInTrash())
 		if promptBool("Confirm delete?") {
@@ -200,19 +200,22 @@ func trashFile(path string) {
 	}
 	i := 0
 	for exists(toMoveTo) { // while it exists (shouldn't) // big fiasco for avoiding clashes and using smallest timestamp possible along with easter eggs
-		if i == 0 {
+		switch i {
+		case 0:
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.Stamp)
 			fmt.Println("Much deleting.")
-		} else if i == 1 { // seconds are the same
+		case 1: // seconds are the same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMilli)
 			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
-		} else if i == 2 { // milliseconds are same
+		case 2: // milliseconds are same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMicro)
 			fmt.Println("What the actual heck. Please contact him.")
-		} else if i == 3 { // microseconds are same
+		case 3: // microseconds are same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampNano)
 			fmt.Println("You are a god.")
-		} else { // nano-freaking-seconds aren't enough for this guy
+		case 4:
+			rand.Seed(time.Now().UTC().UnixNano()) // prep for default
+		default: // nano-freaking-seconds aren't enough for this guy
 			fmt.Println("(speechless)")
 			if i == 4 { // seed once
 				rand.Seed(time.Now().UTC().UnixNano())
