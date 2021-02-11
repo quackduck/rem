@@ -4,7 +4,7 @@ Get some rapid-eye-movement sleep knowing your files are safe.
 
 ## What is Rem?
 
-Rem is a CLI trash which makes it _ridiculously_ easy to recover them.
+Rem is a CLI trash which makes it _ridiculously_ easy to recover files. We've all had that moment when we've deleted something we realised we shouldn't have. It sucks. Let's fix that!
 
 ## Demo
 
