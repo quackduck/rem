@@ -8,7 +8,7 @@ Rem is a CLI trash which makes it _ridiculously_ easy to recover files. We've al
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/390479.svg)](https://asciinema.org/a/390479)
+[![asciicast](https://asciinema.org/a/390479.svg)](https://asciinema.org/a/390479?speed=2)
 
 Let's say we have the following file structure
 ```text
