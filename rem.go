@@ -132,7 +132,11 @@ func parseLogFile() map[string]string {
 	lines := make(map[string]string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		lines[strings.Split(scanner.Text(), logSeparator)[0]] = strings.Split(scanner.Text(), logSeparator)[1]
+		line := scanner.Text()
+		lastLogSeparator := strings.LastIndex(line, logSeparator)
+		from := line[:lastLogSeparator]          // up to last logSeparator
+		pathInTrash := line[lastLogSeparator+1:] // after last logSeparator
+		lines[from] = pathInTrash
 	}
 	if scanner.Err() != nil {
 		handleErr(err)
@@ -203,7 +207,6 @@ func trashFile(path string) {
 		switch i {
 		case 0:
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.Stamp)
-			fmt.Println("Much deleting.")
 		case 1: // seconds are the same
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMilli)
 			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
@@ -256,7 +259,7 @@ func existsInMap(m map[string]string, elem string) bool {
 func ensureTrashDir() {
 	i, _ := os.Stat(trashDir)
 	if !exists(trashDir) {
-		err := os.Mkdir(trashDir, os.ModePerm)
+		err := os.MkdirAll(trashDir, os.ModePerm)
 		if err != nil {
 			handleErr(err)
 			return

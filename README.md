@@ -75,3 +75,9 @@ Options:
    -h/--help              print this help message
    -v/--version           print Rem version
 ```
+
+## Thanks
+
+Thanks to [u/skeeto](https://www.reddit.com/user/skeeto/) for helping me with race conditions and design [here](https://www.reddit.com/r/golang/comments/lixr6k/rem_the_trash_cli_that_makes_it_ridiculously_easy/gn7z86z?utm_source=share&utm_medium=web2x&context=3)
+
+
