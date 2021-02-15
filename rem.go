@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	version = "dev"
+	version = "dev" // this is set on release build (check .goreleaser.yml)
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-trash <dir>] [--permanent | -u/--undo] file
@@ -131,8 +131,8 @@ func getLogFile() map[string]string {
 	}
 	defer file.Close()
 	lines := make(map[string]string)
-	enc := gob.NewDecoder(file)
-	err = enc.Decode(&lines)
+	dec := gob.NewDecoder(file)
+	err = dec.Decode(&lines)
 	if err != nil && err != io.EOF {
 		handleErr(err)
 	}
@@ -150,7 +150,7 @@ func setLogFile(m map[string]string) {
 	defer f.Close()
 	enc := gob.NewEncoder(f)
 	err = enc.Encode(m)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		handleErr(err)
 	}
 }
@@ -226,11 +226,11 @@ func trashFile(path string) {
 	}
 	m := getLogFile()
 	oldPath := path
-	i = 0
+	i = 1
 	for ; existsInMap(m, path); i++ { // might be the same path as before
 		path = oldPath + " " + strconv.Itoa(i)
 	}
-	if i != 0 {
+	if i != 1 {
 		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
 	}
 	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
