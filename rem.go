@@ -2,12 +2,13 @@ package main
 
 import (
 	"bufio"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -28,10 +29,10 @@ Options:
    -t/--set-trash <dir>   set trash to dir and continue
    -h/--help              print this help message
    -v/--version           print Rem version`
-	home, _      = os.UserHomeDir()
-	trashDir     = home + "/.remTrash"
-	logFileName  = ".trash.log"
-	logSeparator = "\t==>\t"
+	home, _     = os.UserHomeDir()
+	trashDir    = home + "/.remTrash"
+	logFileName = ".trash.log"
+	//logSeparator = "\t==>\t"
 )
 
 func main() {
@@ -109,7 +110,7 @@ func main() {
 }
 
 func listFilesInTrash() []string {
-	m := parseLogFile()
+	m := getLogFile()
 	s := make([]string, 0, 10)
 	for key := range m {
 		s = append(s, key)
@@ -121,7 +122,7 @@ func emptyTrash() {
 	permanentlyDeleteFile(trashDir)
 }
 
-func parseLogFile() map[string]string {
+func getLogFile() map[string]string {
 	ensureTrashDir()
 	file, err := os.OpenFile(trashDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
@@ -130,17 +131,10 @@ func parseLogFile() map[string]string {
 	}
 	defer file.Close()
 	lines := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		lastLogSeparator := strings.LastIndex(line, logSeparator)
-		from := line[:lastLogSeparator]          // up to last logSeparator
-		pathInTrash := line[lastLogSeparator+1:] // after last logSeparator
-		lines[from] = pathInTrash
-	}
-	if scanner.Err() != nil {
+	enc := gob.NewDecoder(file)
+	err = enc.Decode(&lines)
+	if err != nil && err != io.EOF {
 		handleErr(err)
-		return lines
 	}
 	return lines
 }
@@ -154,12 +148,10 @@ func setLogFile(m map[string]string) {
 		return
 	}
 	defer f.Close()
-
-	for key, value := range m {
-		if _, err = f.WriteString(key + logSeparator + value + "\n"); err != nil {
-			handleErr(err)
-			return
-		}
+	enc := gob.NewEncoder(f)
+	err = enc.Encode(m)
+	if err != nil {
+		handleErr(err)
 	}
 }
 
@@ -169,7 +161,7 @@ func restore(path string) {
 		handleErr(err)
 		return
 	}
-	logFile := parseLogFile()
+	logFile := getLogFile()
 	fileInTrash, ok := logFile[path]
 	if ok {
 		err = os.Rename(fileInTrash, path)
@@ -232,13 +224,13 @@ func trashFile(path string) {
 		handleErr(err)
 		return
 	}
-	m := parseLogFile()
+	m := getLogFile()
 	oldPath := path
-	i = 1
+	i = 0
 	for ; existsInMap(m, path); i++ { // might be the same path as before
 		path = oldPath + " " + strconv.Itoa(i)
 	}
-	if i == 1 {
+	if i != 0 {
 		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
 	}
 	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
