@@ -238,7 +238,7 @@ func trashFile(path string) {
 	for ; existsInMap(m, path); i++ { // might be the same path as before
 		path = oldPath + " " + strconv.Itoa(i)
 	}
-	if i == 1 {
+	if i != 1 {
 		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
 	}
 	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
