@@ -209,7 +209,7 @@ func trashFile(path string) {
 			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampNano)
 			fmt.Println("You are a god.")
 		case 4:
-			rand.Seed(time.Now().UTC().UnixNano()) // prep for default
+			rand.Seed(time.Now().UTC().UnixNano()) // prep for default case
 		default: // nano-freaking-seconds aren't enough for this guy
 			fmt.Println("(speechless)")
 			if i == 4 { // seed once
@@ -233,9 +233,9 @@ func trashFile(path string) {
 	if i != 1 {
 		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
 	}
-	m[path] = toMoveTo // logfile format is path where it came from ==> path in trash
+	m[path] = toMoveTo // format is path where it came from ==> path in trash
 	setLogFile(m)
-	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo "+path))
+	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
 }
 
 func exists(path string) bool {
