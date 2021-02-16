@@ -111,9 +111,11 @@ func main() {
 
 func listFilesInTrash() []string {
 	m := getLogFile()
-	s := make([]string, 0, 10)
+	s := make([]string, len(m))
+	i := 0
 	for key := range m {
-		s = append(s, key)
+		s[i] = key
+		i++
 	}
 	return s
 }
