@@ -9,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/otiai10/copy"
 )
 
 var (
@@ -29,11 +31,16 @@ Options:
    -t/--set-trash <dir>   set trash to dir and continue
    -h/--help              print this help message
    -v/--version           print Rem version`
-	home, _     = os.UserHomeDir()
-	trashDir    = home + "/.remTrash"
-	logFileName = ".trash.log"
+	home, _               = os.UserHomeDir()
+	trashDir              = home + "/.remTrash"
+	logFileName           = ".trash.log"
+	logFile               map[string]string
+	renameByCopyIsAllowed = true
 	//logSeparator = "\t==>\t"
 )
+
+// TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
+// TODO: Check if files are on different fs and if so, copy it over
 
 func main() {
 	trashDir, _ = filepath.Abs(trashDir)
@@ -76,6 +83,7 @@ func main() {
 		main()
 		return
 	}
+
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(trashDir)
 		return
@@ -85,12 +93,14 @@ func main() {
 		return
 	}
 	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		color.Red("Warning, permanently deleting these files in trash: ")
-		printFormattedList(listFilesInTrash())
+		color.Red("Warning, permanently deleting all files in " + trashDir)
 		if promptBool("Confirm delete?") {
 			emptyTrash()
 		}
 		return
+	}
+	if hasOption, _ := argsHaveOptionLong("disable-copy"); hasOption {
+		renameByCopyIsAllowed = false
 	}
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
 		if !(len(os.Args) > i+1) {
@@ -109,11 +119,116 @@ func main() {
 	}
 }
 
+func restore(path string) {
+	path = filepath.Clean(path)
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		handleErr(err)
+		return
+	}
+	m := getLogFile()
+	fileInTrash, ok := m[absPath]
+	if ok {
+		err = os.Rename(fileInTrash, absPath)
+		if err != nil {
+			handleErr(err)
+			return
+		}
+	} else {
+		handleErrStr("file not in trash or missing restore data")
+		return
+	}
+	delete(logFile, absPath)
+	setLogFile(logFile) // we deleted an entry so save the edited logFile
+	fmt.Println(color.YellowString(path) + " restored")
+}
+
+func trashFile(path string) {
+	var toMoveTo string
+	var err error
+	path = filepath.Clean(path)
+	toMoveTo = trashDir + "/" + filepath.Base(path)
+	if path == toMoveTo { // small edge case when trashing a file from trash
+		handleErrStr(color.YellowString(path) + " is already in trash")
+		return
+	}
+	if !exists(path) {
+		handleErrStr(color.YellowString(path) + " does not exist")
+		return
+	}
+	toMoveTo = getTimestampedPath(toMoveTo, exists)
+	path = getTimestampedPath(path, existsInLog)
+	if renameByCopyIsAllowed {
+		err = renameByCopyAllowed(path, toMoveTo)
+	} else {
+		err = os.Rename(path, toMoveTo)
+	}
+	if err != nil {
+		handleErr(err)
+		return
+	}
+	m := getLogFile()
+	absPath, _ := filepath.Abs(path)
+	m[absPath] = toMoveTo // format is path where it came from ==> path in trash
+	setLogFile(m)
+	// if we've reached here, trashing is complete and successful
+	// TODO: Print with quotes only if it contains spaces
+	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+}
+
+func renameByCopyAllowed(src, dst string) error {
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+	lerr := err.(*os.LinkError)
+	if lerr.Err == syscall.EXDEV {
+		// rename by copying and deleting
+		err = copy.Copy(src, dst)
+		permanentlyDeleteFile(src)
+	}
+	return err
+}
+
+// existsFunc() is used to determine if there is a conflict. It should return true if there is a conflict.
+func getTimestampedPath(path string, existsFunc func(string) bool) string {
+	var i int // make i accessible in function scope to check if it changed
+	oldPath := path
+	for ; existsFunc(path); i++ { // big fiasco for avoiding clashes and using smallest timestamp possible along with easter eggs
+		switch i {
+		case 0:
+			path = oldPath + time.Now().Format(time.Stamp)
+		case 1: // seconds are the same
+			path = oldPath + time.Now().Format(time.StampMilli)
+		case 2: // milliseconds are same
+			path = oldPath + time.Now().Format(time.StampMicro)
+			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
+		case 3: // microseconds are same
+			path = oldPath + time.Now().Format(time.StampNano)
+			fmt.Println("You are a god.")
+		case 4:
+			rand.Seed(time.Now().UTC().UnixNano()) // prep for default case
+		default: // nano-freaking-seconds aren't enough for this guy
+			fmt.Println("(speechless)")
+			if i == 4 { // seed once
+				rand.Seed(time.Now().UTC().UnixNano())
+			}
+			path = oldPath + strconv.FormatInt(rand.Int63(), 10) // add random stuff at the end
+		}
+	}
+	if i != 0 {
+		fmt.Println("To avoid conflicts, " + color.YellowString(oldPath) + " will now be called " + color.YellowString(path))
+	}
+	return path
+}
+
 func listFilesInTrash() []string {
 	m := getLogFile()
 	s := make([]string, len(m))
 	i := 0
+	// wd, _ := os.Getwd()
 	for key := range m {
+		// s[i] = strings.TrimPrefix(key, wd+string(filepath.Separator)) // list relative
 		s[i] = key
 		i++
 	}
@@ -125,6 +240,9 @@ func emptyTrash() {
 }
 
 func getLogFile() map[string]string {
+	if logFile != nil {
+		return logFile
+	}
 	ensureTrashDir()
 	file, err := os.OpenFile(trashDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
@@ -157,95 +275,13 @@ func setLogFile(m map[string]string) {
 	}
 }
 
-func restore(path string) {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		handleErr(err)
-		return
-	}
-	logFile := getLogFile()
-	fileInTrash, ok := logFile[path]
-	if ok {
-		err = os.Rename(fileInTrash, path)
-		if err != nil {
-			handleErr(err)
-			return
-		}
-	} else {
-		handleErrStr("file not in trash or missing restore data")
-		return
-	}
-	delete(logFile, path)
-	setLogFile(logFile) // we deleted an entry so save the new one
-	fmt.Println(color.YellowString(path) + " restored")
-}
-
-func trashFile(path string) {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		handleErr(err)
-		return
-	}
-	//toMoveTo := trashDir + "/" + filepath.Base(path+time.Now().String())
-	toMoveTo := trashDir + "/" + filepath.Base(path)
-	if path == toMoveTo { // small edge case when trashing a file from trash
-		handleErrStr(color.YellowString(path) + " is already in trash")
-		return
-	}
-	if _, err = os.Stat(path); os.IsNotExist(err) {
-		handleErrStr(color.YellowString(path) + " does not exist")
-		return
-	}
-	i := 0
-	for exists(toMoveTo) { // while it exists (shouldn't) // big fiasco for avoiding clashes and using smallest timestamp possible along with easter eggs
-		switch i {
-		case 0:
-			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.Stamp)
-		case 1: // seconds are the same
-			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMilli)
-			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
-		case 2: // milliseconds are same
-			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampMicro)
-			fmt.Println("What the actual heck. Please contact him.")
-		case 3: // microseconds are same
-			toMoveTo = trashDir + "/" + filepath.Base(path) + " Deleted at " + time.Now().Format(time.StampNano)
-			fmt.Println("You are a god.")
-		case 4:
-			rand.Seed(time.Now().UTC().UnixNano()) // prep for default case
-		default: // nano-freaking-seconds aren't enough for this guy
-			fmt.Println("(speechless)")
-			if i == 4 { // seed once
-				rand.Seed(time.Now().UTC().UnixNano())
-			}
-			toMoveTo = trashDir + "/" + filepath.Base(path) + strconv.FormatFloat(rand.Float64(), 'E', -1, 64) // add random stuff at the end
-		}
-		i++
-	}
-	err = os.Rename(path, toMoveTo)
-	if err != nil {
-		handleErr(err)
-		return
-	}
-	m := getLogFile()
-	oldPath := path
-	i = 1
-	for ; existsInMap(m, path); i++ { // might be the same path as before
-		path = oldPath + " " + strconv.Itoa(i)
-	}
-	if i != 1 {
-		fmt.Println("A file of this exact path was deleted earlier. To avoid conflicts, this file will now be called " + color.YellowString(path))
-	}
-	m[path] = toMoveTo // format is path where it came from ==> path in trash
-	setLogFile(m)
-	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
-}
-
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return !(os.IsNotExist(err))
 }
 
-func existsInMap(m map[string]string, elem string) bool {
+func existsInLog(elem string) bool {
+	m := getLogFile()
 	_, alreadyExists := m[elem]
 	return alreadyExists
 }
@@ -272,6 +308,30 @@ func permanentlyDeleteFile(fileName string) {
 		handleErr(err)
 	}
 }
+
+//
+//func renameByCopyIsAllowed(source, dest string) error {
+//	inputFile, err := os.Open(source)
+//	if err != nil {
+//		return err
+//	}
+//	defer inputFile.Close()
+//	outputFile, err := os.Create(dest)
+//	if err != nil {
+//		return err
+//	}
+//	defer outputFile.Close()
+//	_, err = io.Copy(outputFile, inputFile)
+//	if err != nil {
+//		return err
+//	}
+//	// The copy was successful, so now delete the original file
+//	err = os.RemoveAll(source)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 // Utilities:
 
