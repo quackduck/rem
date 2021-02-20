@@ -63,7 +63,7 @@ Rem stores its trash by default at `~/.remTrash`.
 ## Usage
 
 ```text
-Usage: rem [-t/--set-trash <dir>] [--permanent | -u/--undo] file
+Usage: rem [-t/--set-trash <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
        rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
    -u/--undo              restore a file
@@ -72,6 +72,7 @@ Options:
    --permanent            delete a file permanently
    -d/--directory         show path to trash
    -t/--set-trash <dir>   set trash to dir and continue
+   --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version
 ```

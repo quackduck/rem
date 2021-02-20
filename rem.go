@@ -20,7 +20,7 @@ var (
 	version = "dev" // this is set on release build (check .goreleaser.yml)
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
-Usage: rem [-t/--set-trash <dir>] [--permanent | -u/--undo] file
+Usage: rem [-t/--set-trash <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
        rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
    -u/--undo              restore a file
@@ -29,6 +29,7 @@ Options:
    --permanent            delete a file permanently
    -d/--directory         show path to trash
    -t/--set-trash <dir>   set trash to dir and continue
+   --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version`
 	home, _               = os.UserHomeDir()
@@ -40,7 +41,6 @@ Options:
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
-// TODO: Check if files are on different fs and if so, copy it over
 
 func main() {
 	trashDir, _ = filepath.Abs(trashDir)
@@ -128,14 +128,18 @@ func restore(path string) {
 	}
 	m := getLogFile()
 	fileInTrash, ok := m[absPath]
-	if ok {
-		err = os.Rename(fileInTrash, absPath)
+	if ok { // found in log
+		if renameByCopyIsAllowed {
+			err = renameByCopyAllowed(fileInTrash, absPath)
+		} else {
+			err = os.Rename(fileInTrash, absPath)
+		}
 		if err != nil {
 			handleErr(err)
 			return
 		}
 	} else {
-		handleErrStr("file not in trash or missing restore data")
+		handleErrStr(color.YellowString(path) + " is not in trash or is missing restore data")
 		return
 	}
 	delete(logFile, absPath)
