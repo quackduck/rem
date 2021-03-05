@@ -201,14 +201,14 @@ func getTimestampedPath(path string, existsFunc func(string) bool) string {
 	for ; existsFunc(path); i++ { // big fiasco for avoiding clashes and using smallest timestamp possible along with easter eggs
 		switch i {
 		case 0:
-			path = oldPath + time.Now().Format(time.Stamp)
+			path = oldPath + " " + time.Now().Format(time.Stamp)
 		case 1: // seconds are the same
-			path = oldPath + time.Now().Format(time.StampMilli)
+			path = oldPath + " " + time.Now().Format(time.StampMilli)
 		case 2: // milliseconds are same
-			path = oldPath + time.Now().Format(time.StampMicro)
+			path = oldPath + " " + time.Now().Format(time.StampMicro)
 			fmt.Println("No way. This is super unlikely. Please contact my creator at igoel.mail@gmail.com or on github @quackduck and tell him what you were doing.")
 		case 3: // microseconds are same
-			path = oldPath + time.Now().Format(time.StampNano)
+			path = oldPath + " " + time.Now().Format(time.StampNano)
 			fmt.Println("You are a god.")
 		case 4:
 			rand.Seed(time.Now().UTC().UnixNano()) // prep for default case
@@ -217,7 +217,7 @@ func getTimestampedPath(path string, existsFunc func(string) bool) string {
 			if i == 4 { // seed once
 				rand.Seed(time.Now().UTC().UnixNano())
 			}
-			path = oldPath + strconv.FormatInt(rand.Int63(), 10) // add random stuff at the end
+			path = oldPath + " " + strconv.FormatInt(rand.Int63(), 10) // add random stuff at the end
 		}
 	}
 	if i != 0 {
