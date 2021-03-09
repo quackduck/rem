@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/fatih/color"
@@ -183,11 +182,6 @@ func trashFile(path string) {
 func renameByCopyAllowed(src, dst string) error {
 	err := os.Rename(src, dst)
 	if err == nil {
-		return nil
-	}
-	lerr := err.(*os.LinkError)
-	if lerr.Err == syscall.EXDEV {
-		// rename by copying and deleting
 		err = copy.Copy(src, dst)
 		permanentlyDeleteFile(src)
 	}
