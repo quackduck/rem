@@ -307,30 +307,6 @@ func permanentlyDeleteFile(fileName string) {
 	}
 }
 
-//
-//func renameByCopyIsAllowed(source, dest string) error {
-//	inputFile, err := os.Open(source)
-//	if err != nil {
-//		return err
-//	}
-//	defer inputFile.Close()
-//	outputFile, err := os.Create(dest)
-//	if err != nil {
-//		return err
-//	}
-//	defer outputFile.Close()
-//	_, err = io.Copy(outputFile, inputFile)
-//	if err != nil {
-//		return err
-//	}
-//	// The copy was successful, so now delete the original file
-//	err = os.RemoveAll(source)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
-
 // Utilities:
 
 func promptBool(promptStr string) (yes bool) {
