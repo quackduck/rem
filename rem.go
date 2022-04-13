@@ -181,7 +181,7 @@ func trashFile(path string) {
 
 func renameByCopyAllowed(src, dst string) error {
 	err := os.Rename(src, dst)
-	if err == nil {
+	if err != nil {
 		err = copy.Copy(src, dst)
 		permanentlyDeleteFile(src)
 	}
