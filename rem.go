@@ -315,14 +315,6 @@ func chooseDataDir() string {
 		return dataHome + "/rem/trash"
 	}
 	return home + "/.local/share/rem"
-	// dirtyDataHome := home + "/.local/share"
-	// stats, err := os.Stat(dirtyDataHome)
-	// if !(os.IsNotExist(err)) {
-	// 	if stats.IsDir() {
-	// 		return dirtyDataHome + "/rem/trash"
-	// 	}
-	// }
-	// return home + "/.remTrash"
 }
 
 func permanentlyDeleteFile(fileName string) {
