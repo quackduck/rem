@@ -31,8 +31,7 @@ Options:
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version`
-	home, _               = os.UserHomeDir()
-	trashDir              = home + "/.remTrash"
+	trashDir              string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
 	renameByCopyIsAllowed = true
@@ -42,7 +41,7 @@ Options:
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
 
 func main() {
-	trashDir, _ = filepath.Abs(trashDir)
+	trashDir, _ = filepath.Abs(chooseTrashDir())
 	if len(os.Args) == 1 {
 		handleErrStr("too few arguments")
 		fmt.Println(helpMsg)
@@ -298,6 +297,35 @@ func ensureTrashDir() {
 		permanentlyDeleteFile(trashDir) // not a dir so delete
 		ensureTrashDir()                // then make it
 	}
+}
+
+// Choose the best directory for the REM trash and returns it
+// The choice is the following;
+// * If the environment variable REM_TRASH exists, it is used as the path for
+//   the trash.
+// * If the environment variable XDG_DATA_HOME exists, $XDG_DATA_HOME/remTrash
+//   is used as the path for the trash.
+// * If ~/.local/share exists and is a directory, ~/.local/share/remTrash is
+//   used as the path for the trash.
+// * If no other option works, ~/.remTrash is used as the path for the trash.
+func chooseTrashDir() string {
+	home, _ := os.UserHomeDir()
+	remEnv := os.Getenv("REM_TRASH")
+	if remEnv != "" {
+		return remEnv
+	}
+	dataHome := os.Getenv("XDG_DATA_HOME")
+	if dataHome != "" {
+		return dataHome + "/remTrash"
+	}
+	dirtyDataHome := home + "/.local/share"
+	stats, err := os.Stat(dirtyDataHome)
+	if !(os.IsNotExist(err)) {
+		if stats.IsDir() {
+			return dirtyDataHome + "/remTrash"
+		}
+	}
+	return home + "/.remTrash"
 }
 
 func permanentlyDeleteFile(fileName string) {
