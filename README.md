@@ -58,7 +58,7 @@ Simply remove the executable or use:
 brew uninstall rem
 ```
 
-Rem stores its trash by default at `~/.remTrash`.
+Rem stores its trash by default at `$XDG_DATA_HOME/remTrash`. Alternatively, you can supply the path to the trash in the environment variable `REM_TRASH`, or supplying it with the `-d` command line argument.
 
 ## Usage
 
