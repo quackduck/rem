@@ -58,24 +58,24 @@ Simply remove the executable or use:
 brew uninstall rem
 ```
 
-Rem stores its trash by default at `~/.remTrash`.
-
 ## Usage
 
 ```text
-Usage: rem [-t/--set-trash <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
+Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
        rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
    --empty                empty the trash permanently
    --permanent            delete a file permanently
-   -d/--directory         show path to trash
-   -t/--set-trash <dir>   set trash to dir and continue
+   -d/--directory         show path to the data dir
+   -t/--set-dir <dir>     set the data dir and continue
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version
 ```
+
+Rem stores its data at `$XDG_DATA_HOME/rem` or `.local/share/rem` by default. Alternatively, set the data directory using `$REM_TRASH` or with the `-d` option.
 
 ## Thanks
 

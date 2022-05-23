@@ -19,20 +19,19 @@ var (
 	version = "dev" // this is set on release build (check .goreleaser.yml)
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
-Usage: rem [-t/--set-trash <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
+Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
        rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
    --empty                empty the trash permanently
    --permanent            delete a file permanently
-   -d/--directory         show path to trash
-   -t/--set-trash <dir>   set trash to dir and continue
+   -d/--directory         show path to the data dir
+   -t/--set-dir <dir>     set the data dir and continue
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version`
-	home, _               = os.UserHomeDir()
-	trashDir              = home + "/.remTrash"
+	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
 	renameByCopyIsAllowed = true
@@ -42,7 +41,6 @@ Options:
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
 
 func main() {
-	trashDir, _ = filepath.Abs(trashDir)
 	if len(os.Args) == 1 {
 		handleErrStr("too few arguments")
 		fmt.Println(helpMsg)
@@ -70,13 +68,16 @@ func main() {
 		}
 		return
 	}
-	if hasOption, i := argsHaveOption("set-trash", "t"); hasOption {
+
+	dataDir, _ = filepath.Abs(chooseDataDir())
+
+	if hasOption, i := argsHaveOption("set-dir", "t"); hasOption {
 		if !(len(os.Args) > i+1) {
-			handleErrStr("Not enough arguments for --set-trash")
+			handleErrStr("Not enough arguments for --set-dir")
 			return
 		}
 		//fmt.Println("Using " + os.Args[i+1] + " as trash")
-		trashDir = os.Args[i+1]
+		dataDir = os.Args[i+1]
 		os.Args = removeElemFromSlice(os.Args, i+1) // remove the specified dir too
 		os.Args = removeElemFromSlice(os.Args, i)
 		main()
@@ -84,7 +85,7 @@ func main() {
 	}
 
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
-		fmt.Println(trashDir)
+		fmt.Println(dataDir)
 		return
 	}
 	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
@@ -92,7 +93,7 @@ func main() {
 		return
 	}
 	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		color.Red("Warning, permanently deleting all files in " + trashDir)
+		color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
 		if promptBool("Confirm delete?") {
 			emptyTrash()
 		}
@@ -150,7 +151,7 @@ func trashFile(path string) {
 	var toMoveTo string
 	var err error
 	path = filepath.Clean(path)
-	toMoveTo = trashDir + "/" + filepath.Base(path)
+	toMoveTo = dataDir + "/trash/" + filepath.Base(path)
 	if path == toMoveTo { // small edge case when trashing a file from trash
 		handleErrStr(color.YellowString(path) + " is already in trash")
 		return
@@ -234,7 +235,8 @@ func listFilesInTrash() []string {
 }
 
 func emptyTrash() {
-	permanentlyDeleteFile(trashDir)
+	permanentlyDeleteFile(dataDir + "/trash")
+	permanentlyDeleteFile(dataDir + "/" + logFileName)
 }
 
 func getLogFile() map[string]string {
@@ -242,7 +244,7 @@ func getLogFile() map[string]string {
 		return logFile
 	}
 	ensureTrashDir()
-	file, err := os.OpenFile(trashDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
+	file, err := os.OpenFile(dataDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
 		handleErr(err)
 		return nil
@@ -260,7 +262,7 @@ func getLogFile() map[string]string {
 func setLogFile(m map[string]string) {
 	//f, err := os.OpenFile(trashDir+"/"+logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644) // truncate to empty, create if not exist, write only
 	ensureTrashDir()
-	f, err := os.Create(trashDir + "/" + logFileName)
+	f, err := os.Create(dataDir + "/" + logFileName)
 	if err != nil {
 		handleErr(err)
 		return
@@ -285,9 +287,9 @@ func existsInLog(elem string) bool {
 }
 
 func ensureTrashDir() {
-	i, _ := os.Stat(trashDir)
-	if !exists(trashDir) {
-		err := os.MkdirAll(trashDir, os.ModePerm)
+	i, _ := os.Stat(dataDir + "/trash")
+	if !exists(dataDir + "/trash") {
+		err := os.MkdirAll(dataDir+"/trash", os.ModePerm)
 		if err != nil {
 			handleErr(err)
 			return
@@ -295,9 +297,24 @@ func ensureTrashDir() {
 		return
 	}
 	if !i.IsDir() {
-		permanentlyDeleteFile(trashDir) // not a dir so delete
-		ensureTrashDir()                // then make it
+		permanentlyDeleteFile(dataDir + "/trash") // not a dir so delete
+		ensureTrashDir()                          // then make it
 	}
+}
+
+// chooseDataDir returns the best directory to store data based on $REM_TRASH and $XDG_DATA_HOME,
+// using ~/.local/share/rem as the default if neither is set.
+func chooseDataDir() string {
+	home, _ := os.UserHomeDir()
+	remEnv := os.Getenv("REM_DATADIR")
+	if remEnv != "" {
+		return remEnv
+	}
+	dataHome := os.Getenv("XDG_DATA_HOME")
+	if dataHome != "" {
+		return dataHome + "/rem/trash"
+	}
+	return home + "/.local/share/rem"
 }
 
 func permanentlyDeleteFile(fileName string) {
