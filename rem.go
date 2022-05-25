@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -72,31 +72,30 @@ func main() {
 	}
 
 	dataDir, _ = filepath.Abs(chooseDataDir())
+	ignoreArgs := make(map[int]bool, 3)
 
 	if hasOption, i := argsHaveOption("set-dir", "t"); hasOption {
 		if !(len(os.Args) > i+1) {
 			handleErrStr("Not enough arguments for --set-dir")
 			return
 		}
-		//fmt.Println("Using " + os.Args[i+1] + " as trash")
 		dataDir = os.Args[i+1]
-		os.Args = removeElemFromSlice(os.Args, i+1) // remove the specified dir too
-		os.Args = removeElemFromSlice(os.Args, i)
-		main()
-		return
+		ignoreArgs[i] = true
+		ignoreArgs[i+1] = true
 	}
 
 	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
 		quietMode = true
-		os.Args = removeElemFromSlice(os.Args, i)
-		main()
-		return
+		ignoreArgs[i] = true
 	}
 
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(dataDir)
 		return
 	}
+
+	logFile = getLogFile()
+
 	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
 		printFormattedList(listFilesInTrash())
 		return
@@ -108,8 +107,9 @@ func main() {
 		}
 		return
 	}
-	if hasOption, _ := argsHaveOptionLong("disable-copy"); hasOption {
+	if hasOption, i := argsHaveOptionLong("disable-copy"); hasOption {
 		renameByCopyIsAllowed = false
+		ignoreArgs[i] = true
 	}
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
 		if !(len(os.Args) > i+1) {
@@ -123,8 +123,10 @@ func main() {
 	}
 	// normal case
 	ensureTrashDir()
-	for _, filePath := range os.Args[1:] {
-		trashFile(filePath)
+	for i, filePath := range os.Args[1:] {
+		if !ignoreArgs[i] {
+			trashFile(filePath)
+		}
 	}
 }
 
@@ -135,8 +137,8 @@ func restore(path string) {
 		handleErr(err)
 		return
 	}
-	m := getLogFile()
-	fileInTrash, ok := m[absPath]
+
+	fileInTrash, ok := logFile[absPath]
 	if ok { // found in log
 		if renameByCopyIsAllowed {
 			err = renameByCopyAllowed(fileInTrash, absPath)
@@ -180,10 +182,10 @@ func trashFile(path string) {
 		handleErr(err)
 		return
 	}
-	m := getLogFile()
+
 	absPath, _ := filepath.Abs(path)
-	m[absPath] = toMoveTo // format is path where it came from ==> path in trash
-	setLogFile(m)
+	logFile[absPath] = toMoveTo // format is path where it came from ==> path in trash
+	setLogFile(logFile)
 	// if we've reached here, trashing is complete and successful
 	// TODO: Print with quotes only if it contains spaces
 	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
@@ -231,11 +233,10 @@ func getTimestampedPath(path string, existsFunc func(string) bool) string {
 }
 
 func listFilesInTrash() []string {
-	m := getLogFile()
-	s := make([]string, len(m))
+	s := make([]string, len(logFile))
 	i := 0
 	// wd, _ := os.Getwd()
-	for key := range m {
+	for key := range logFile {
 		// s[i] = strings.TrimPrefix(key, wd+string(filepath.Separator)) // list relative
 		s[i] = key
 		i++
@@ -253,16 +254,10 @@ func getLogFile() map[string]string {
 		return logFile
 	}
 	ensureTrashDir()
-	file, err := os.OpenFile(dataDir+"/"+logFileName, os.O_CREATE|os.O_RDONLY, 0644)
-	if err != nil {
-		handleErr(err)
-		return nil
-	}
-	defer file.Close()
+	b, err := ioutil.ReadFile(dataDir + "/" + logFileName)
 	lines := make(map[string]string)
-	dec := gob.NewDecoder(file)
-	err = dec.Decode(&lines)
-	if err != nil && err != io.EOF {
+	err = json.Unmarshal(b, &lines)
+	if err != nil {
 		handleErr(err)
 	}
 	return lines
@@ -271,15 +266,13 @@ func getLogFile() map[string]string {
 func setLogFile(m map[string]string) {
 	//f, err := os.OpenFile(trashDir+"/"+logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644) // truncate to empty, create if not exist, write only
 	ensureTrashDir()
-	f, err := os.Create(dataDir + "/" + logFileName)
+	b, err := json.Marshal(m)
 	if err != nil {
 		handleErr(err)
 		return
 	}
-	defer f.Close()
-	enc := gob.NewEncoder(f)
-	err = enc.Encode(m)
-	if err != nil && err != io.EOF {
+	err = ioutil.WriteFile(dataDir+"/"+logFileName, b, 0644)
+	if err != nil {
 		handleErr(err)
 	}
 }
@@ -290,8 +283,7 @@ func exists(path string) bool {
 }
 
 func existsInLog(elem string) bool {
-	m := getLogFile()
-	_, alreadyExists := m[elem]
+	_, alreadyExists := logFile[elem]
 	return alreadyExists
 }
 
