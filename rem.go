@@ -28,6 +28,7 @@ Options:
    --permanent            delete a file permanently
    -d/--directory         show path to the data dir
    -t/--set-dir <dir>     set the data dir and continue
+   -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version`
@@ -35,7 +36,8 @@ Options:
 	logFileName           = ".trash.log"
 	logFile               map[string]string
 	renameByCopyIsAllowed = true
-	//logSeparator = "\t==>\t"
+
+	quietMode = false
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -79,6 +81,13 @@ func main() {
 		//fmt.Println("Using " + os.Args[i+1] + " as trash")
 		dataDir = os.Args[i+1]
 		os.Args = removeElemFromSlice(os.Args, i+1) // remove the specified dir too
+		os.Args = removeElemFromSlice(os.Args, i)
+		main()
+		return
+	}
+
+	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
+		quietMode = true
 		os.Args = removeElemFromSlice(os.Args, i)
 		main()
 		return
@@ -144,7 +153,7 @@ func restore(path string) {
 	}
 	delete(logFile, absPath)
 	setLogFile(logFile) // we deleted an entry so save the edited logFile
-	fmt.Println(color.YellowString(path) + " restored")
+	printIfNotQuiet(color.YellowString(path) + " restored")
 }
 
 func trashFile(path string) {
@@ -177,7 +186,7 @@ func trashFile(path string) {
 	setLogFile(m)
 	// if we've reached here, trashing is complete and successful
 	// TODO: Print with quotes only if it contains spaces
-	fmt.Println("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
 }
 
 func renameByCopyAllowed(src, dst string) error {
@@ -216,7 +225,7 @@ func getTimestampedPath(path string, existsFunc func(string) bool) string {
 		}
 	}
 	if i != 0 {
-		fmt.Println("To avoid conflicts, " + color.YellowString(oldPath) + " will now be called " + color.YellowString(path))
+		printIfNotQuiet("To avoid conflicts, " + color.YellowString(oldPath) + " will now be called " + color.YellowString(path))
 	}
 	return path
 }
@@ -381,5 +390,11 @@ func removeElemFromSlice(slice []string, i int) []string {
 func printFormattedList(a []string) {
 	for i, elem := range a {
 		fmt.Println(color.CyanString(strconv.Itoa(i+1)+":"), elem)
+	}
+}
+
+func printIfNotQuiet(a ...interface{}) {
+	if !quietMode {
+		fmt.Println(a...)
 	}
 }

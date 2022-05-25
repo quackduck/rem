@@ -70,6 +70,7 @@ Options:
    --permanent            delete a file permanently
    -d/--directory         show path to the data dir
    -t/--set-dir <dir>     set the data dir and continue
+   -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
    -v/--version           print Rem version
