@@ -124,7 +124,7 @@ func main() {
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args[1:] {
-		if !ignoreArgs[i] {
+		if !ignoreArgs[i+1] {
 			trashFile(filePath)
 		}
 	}
