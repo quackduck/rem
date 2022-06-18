@@ -124,7 +124,9 @@ func main() {
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args {
-		if i == 0 { continue }
+		if i == 0 {
+			continue
+		}
 		if !ignoreArgs[i] {
 			trashFile(filePath)
 		}
@@ -169,8 +171,16 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		handleErrStr(color.YellowString(path) + " does not exist")
-		return
+		fi, err := os.Lstat(path)
+		if err != nil {
+			handleErr(err)
+			return
+		}
+		if !(fi.Mode()&os.ModeSymlink == os.ModeSymlink) {
+			handleErrStr(color.YellowString(path) + " does not exist")
+			return
+		}
+		// the file is a broken symlink which will be deleted to match rm behavior
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
 	path = getTimestampedPath(path, existsInLog)
