@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -254,7 +253,13 @@ func getLogFile() map[string]string {
 		return logFile
 	}
 	ensureTrashDir()
-	b, err := ioutil.ReadFile(dataDir + "/" + logFileName)
+	b, err := os.ReadFile(dataDir + "/" + logFileName)
+	if os.IsNotExist(err) {
+		return make(map[string]string)
+	}
+	if err != nil {
+		handleErr(err)
+	}
 	lines := make(map[string]string)
 	err = json.Unmarshal(b, &lines)
 	if err != nil {
@@ -271,7 +276,7 @@ func setLogFile(m map[string]string) {
 		handleErr(err)
 		return
 	}
-	err = ioutil.WriteFile(dataDir+"/"+logFileName, b, 0644)
+	err = os.WriteFile(dataDir+"/"+logFileName, b, 0644)
 	if err != nil {
 		handleErr(err)
 	}
