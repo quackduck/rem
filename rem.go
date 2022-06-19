@@ -170,16 +170,8 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		fi, err := os.Lstat(path)
-		if err != nil {
-			handleErr(err)
-			return
-		}
-		if !(fi.Mode()&os.ModeSymlink == os.ModeSymlink) {
-			handleErrStr(color.YellowString(path) + " does not exist")
-			return
-		}
-		// the file is a broken symlink which will be deleted to match rm behavior
+		handleErrStr(color.YellowString(path) + " does not exist")
+		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
 	path = getTimestampedPath(path, existsInLog)
@@ -294,7 +286,7 @@ func setLogFile(m map[string]string) {
 }
 
 func exists(path string) bool {
-	_, err := os.Stat(path)
+	_, err := os.Lstat(path)
 	return !(os.IsNotExist(err))
 }
 
