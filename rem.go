@@ -19,18 +19,18 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-	   rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
-   -u/--undo			  restore a file
-   -l/--list			  list files in trash
-   --empty				empty the trash permanently
-   --permanent			delete a file permanently
-   -d/--directory		 show path to the data dir
-   -t/--set-dir <dir>	 set the data dir and continue
-   -q/--quiet			 enable quiet mode
-   --disable-copy		 if files are on a different fs, don't rename by copy
-   -h/--help			  print this help message
-   -v/--version		   print Rem version`
+   -u/--undo              restore a file
+   -l/--list              list files in trash
+   --empty                empty the trash permanently
+   --permanent            delete a file permanently
+   -d/--directory         show path to the data dir
+   -t/--set-dir <dir>     set the data dir and continue
+   -q/--quiet             enable quiet mode
+   --disable-copy         if files are on a different fs, don't rename by copy
+   -h/--help              print this help message
+   -v/--version           print Rem version`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
