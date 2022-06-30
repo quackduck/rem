@@ -100,9 +100,13 @@ func main() {
 		return
 	}
 	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
-		if promptBool("Confirm delete?") {
+		if quietMode {
 			emptyTrash()
+		} else {
+			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
+			if promptBool("Confirm delete?") {
+				emptyTrash()
+			}
 		}
 		return
 	}
