@@ -332,14 +332,11 @@ func chooseDataDir() string {
 
 func permanentlyDeleteFile(fileName string) {
 	err := os.Chmod(fileName, 0700) // If some files don't have the write permission, it is impossible to delete them
-	if err != nil {
-		if os.IsNotExist(err) { // If we try to empty an already emptied trash, we will try to remove a non-existent log file. This check ensure that no error are raised in this case
-			return
-		}
-		handleErr(err)
+	if os.IsNotExist(err) {         // If we try to empty an already emptied trash, we will try to remove a non-existent log file. As the chmod is not critical, no error needs to be raised
+		return
 	}
 	i, _ := os.Stat(fileName)
-	if i.IsDir() { // As the chmod is nor recursive, we must manually crawl through the trash to chmod and remove all files by hand
+	if i.IsDir() { // As the chmod is not recursive, we must manually crawl through the trash to chmod and remove all files by hand
 		f, _ := os.Open(fileName)
 		files, _ := f.Readdir(0)
 		for _, subFile := range files {
