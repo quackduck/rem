@@ -63,8 +63,13 @@ func main() {
 		color.Red("Warning, permanently deleting: ")
 		printFormattedList(os.Args[i+1:])
 		if promptBool("Confirm delete?") {
+			var err error
 			for _, filePath := range os.Args[i+1:] {
-				permanentlyDeleteFile(filePath)
+				err = permanentlyDeleteFile(filePath)
+				if err != nil {
+					fmt.Println("Could not delete " + filePath)
+					handleErr(err)
+				}
 			}
 		}
 		return
@@ -201,7 +206,10 @@ func renameByCopyAllowed(src, dst string) error {
 	err := os.Rename(src, dst)
 	if err != nil {
 		err = copy.Copy(src, dst)
-		permanentlyDeleteFile(src)
+		if err != nil {
+			return err
+		}
+		err = permanentlyDeleteFile(src)
 	}
 	return err
 }
@@ -251,8 +259,14 @@ func listFilesInTrash() []string {
 }
 
 func emptyTrash() {
-	permanentlyDeleteFile(dataDir + "/trash")
-	permanentlyDeleteFile(dataDir + "/" + logFileName)
+	err := permanentlyDeleteFile(dataDir + "/trash")
+	if err != nil {
+		handleErrStr("Couldn't delete " + dataDir + "/trash " + err.Error())
+	}
+	err = permanentlyDeleteFile(dataDir + "/" + logFileName)
+	if err != nil {
+		handleErrStr("Couldn't delete " + dataDir + "/" + logFileName + " " + err.Error())
+	}
 }
 
 func getLogFile() map[string]string {
@@ -310,8 +324,12 @@ func ensureTrashDir() {
 		return
 	}
 	if !i.IsDir() {
-		permanentlyDeleteFile(dataDir + "/trash") // not a dir so delete
-		ensureTrashDir()                          // then make it
+		err := permanentlyDeleteFile(dataDir + "/trash") // not a dir so delete
+		if err != nil {
+			handleErr(err)
+			return
+		}
+		ensureTrashDir() // then make it
 	}
 }
 
@@ -330,11 +348,37 @@ func chooseDataDir() string {
 	return home + "/.local/share/rem"
 }
 
-func permanentlyDeleteFile(fileName string) {
+func permanentlyDeleteFile(fileName string) error {
 	err := os.RemoveAll(fileName)
-	if err != nil {
-		handleErr(err)
+	if err == nil {
+		return nil
 	}
+	err = os.Chmod(fileName, 0700) // make sure we have write permission
+	if err != nil {
+		return err
+	}
+	i, err := os.Stat(fileName)
+	if err != nil {
+		return err
+	}
+	if i.IsDir() { // recursively chmod
+		f, err := os.Open(fileName)
+		if err != nil {
+			return err
+		}
+		files, err := f.Readdir(0)
+		if err != nil {
+			return err
+		}
+		for _, subFile := range files {
+			err = permanentlyDeleteFile(fileName + "/" + subFile.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	err = os.RemoveAll(fileName)
+	return err
 }
 
 // Utilities:
