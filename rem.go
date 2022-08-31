@@ -19,24 +19,27 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-	   rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
 Options:
-   -u/--undo			  restore a file
-   -l/--list			  list files in trash
-   --empty				empty the trash permanently
-   --permanent			delete a file permanently
-   -d/--directory		 show path to the data dir
-   -t/--set-dir <dir>	 set the data dir and continue
-   -q/--quiet			 enable quiet mode
-   --disable-copy		 if files are on a different fs, don't rename by copy
-   -h/--help			  print this help message
-   -v/--version		   print Rem version`
+   -u/--undo              restore a file
+   -l/--list              list files in trash
+   --empty                empty the trash permanently
+   --permanent            delete a file permanently
+   -d/--directory         show path to the data dir
+   -t/--set-dir <dir>     set the data dir and continue
+   -q/--quiet             enable quiet mode
+   --disable-copy         if files are on a different fs, don't rename by copy
+   -f/--force             Do not print error message on inexistant file,
+                          used for compatibility with rm
+   -h/--help              print this help message
+   -v/--version           print Rem version`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
 	renameByCopyIsAllowed = true
 
 	quietMode = false
+	forceMode = false
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -63,8 +66,13 @@ func main() {
 		color.Red("Warning, permanently deleting: ")
 		printFormattedList(os.Args[i+1:])
 		if promptBool("Confirm delete?") {
+			var err error
 			for _, filePath := range os.Args[i+1:] {
-				permanentlyDeleteFile(filePath)
+				err = permanentlyDeleteFile(filePath)
+				if err != nil {
+					fmt.Println("Could not delete " + filePath)
+					handleErr(err)
+				}
 			}
 		}
 		return
@@ -91,6 +99,11 @@ func main() {
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(dataDir)
 		return
+	}
+
+	if hasOption, i := argsHaveOption("force", "f"); hasOption {
+		ignoreArgs[i] = true
+		forceMode = true
 	}
 
 	logFile = getLogFile()
@@ -174,7 +187,9 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		handleErrStr(color.YellowString(path) + " does not exist")
+		if !forceMode {
+			handleErrStr(color.YellowString(path) + " does not exist")
+		}
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
@@ -201,7 +216,10 @@ func renameByCopyAllowed(src, dst string) error {
 	err := os.Rename(src, dst)
 	if err != nil {
 		err = copy.Copy(src, dst)
-		permanentlyDeleteFile(src)
+		if err != nil {
+			return err
+		}
+		err = permanentlyDeleteFile(src)
 	}
 	return err
 }
@@ -251,8 +269,14 @@ func listFilesInTrash() []string {
 }
 
 func emptyTrash() {
-	permanentlyDeleteFile(dataDir + "/trash")
-	permanentlyDeleteFile(dataDir + "/" + logFileName)
+	err := permanentlyDeleteFile(dataDir + "/trash")
+	if err != nil {
+		handleErrStr("Couldn't delete " + dataDir + "/trash " + err.Error())
+	}
+	err = permanentlyDeleteFile(dataDir + "/" + logFileName)
+	if err != nil {
+		handleErrStr("Couldn't delete " + dataDir + "/" + logFileName + " " + err.Error())
+	}
 }
 
 func getLogFile() map[string]string {
@@ -310,8 +334,12 @@ func ensureTrashDir() {
 		return
 	}
 	if !i.IsDir() {
-		permanentlyDeleteFile(dataDir + "/trash") // not a dir so delete
-		ensureTrashDir()                          // then make it
+		err := permanentlyDeleteFile(dataDir + "/trash") // not a dir so delete
+		if err != nil {
+			handleErr(err)
+			return
+		}
+		ensureTrashDir() // then make it
 	}
 }
 
@@ -330,23 +358,37 @@ func chooseDataDir() string {
 	return home + "/.local/share/rem"
 }
 
-func permanentlyDeleteFile(fileName string) {
-	err := os.Chmod(fileName, 0700) // If some files don't have the write permission, it is impossible to delete them
-	if os.IsNotExist(err) {         // If we try to empty an already emptied trash, we will try to remove a non-existent log file. As the chmod is not critical, no error needs to be raised
-		return
+func permanentlyDeleteFile(fileName string) error {
+	err := os.RemoveAll(fileName)
+	if err == nil {
+		return nil
 	}
-	i, _ := os.Stat(fileName)
-	if i.IsDir() { // As the chmod is not recursive, we must manually crawl through the trash to chmod and remove all files by hand
-		f, _ := os.Open(fileName)
-		files, _ := f.Readdir(0)
+	err = os.Chmod(fileName, 0700) // make sure we have write permission
+	if err != nil {
+		return err
+	}
+	i, err := os.Stat(fileName)
+	if err != nil {
+		return err
+	}
+	if i.IsDir() { // recursively chmod
+		f, err := os.Open(fileName)
+		if err != nil {
+			return err
+		}
+		files, err := f.Readdir(0)
+		if err != nil {
+			return err
+		}
 		for _, subFile := range files {
-			permanentlyDeleteFile(fileName + "/" + subFile.Name())
+			err = permanentlyDeleteFile(fileName + "/" + subFile.Name())
+			if err != nil {
+				return err
+			}
 		}
 	}
-	err = os.Remove(fileName)
-	if err != nil {
-		handleErr(err)
-	}
+	err = os.RemoveAll(fileName)
+	return err
 }
 
 // Utilities:
