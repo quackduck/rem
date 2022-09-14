@@ -33,7 +33,8 @@ Options:
    --version              print Rem version
    -i/--interactive       ignored, used for compatibility with rm
    -r/--recursive         ignored, used for compatibility with rm
-   -v/--verbose           ignored, used for compatibility with rm`
+   -v/--verbose           ignored, used for compatibility with rm
+   --                     all arguments after this as considered files`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -151,6 +152,14 @@ func main() {
 	ensureTrashDir()
 	for i, filePath := range os.Args {
 		if i == 0 {
+			continue
+		}
+		if filePath == "--" {
+			for j, _ := range ignoreArgs {
+				if j > i {
+					ignoreArgs[j] = false
+				}
+			}
 			continue
 		}
 		if !ignoreArgs[i] {
