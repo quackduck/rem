@@ -32,7 +32,7 @@ Options:
    -h/--help              print this help message
    --version              print Rem version
    -i/--interactive       ignored, used for compatibility with rm
-   -r/--recursive         ignored, used for compatibility with rm
+   -r/-R/--recursive      ignored, used for compatibility with rm
    -v/--verbose           ignored, used for compatibility with rm
    --                     all arguments after this as considered files`
 	dataDir               string
