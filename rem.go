@@ -32,7 +32,11 @@ Options:
    -f/--force             Do not print error message on inexistant file,
                           used for compatibility with rm
    -h/--help              print this help message
-   -v/--version           print Rem version`
+   --version              print Rem version
+   -i/--interactive       ignored, used for compatibility with rm
+   -r/-R/--recursive      ignored, used for compatibility with rm
+   -v/--verbose           ignored, used for compatibility with rm
+   --                     all arguments after this as considered files`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -54,7 +58,7 @@ func main() {
 		fmt.Println(helpMsg)
 		return
 	}
-	if hasOption, _ := argsHaveOption("version", "v"); hasOption {
+	if hasOption, _ := argsHaveOptionLong("version"); hasOption {
 		fmt.Println("Rem " + version)
 		return
 	}
@@ -137,10 +141,33 @@ func main() {
 		}
 		return
 	}
+
+	// ignored compatibility arguments
+	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOptionLong("R"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+		ignoreArgs[i] = true
+	}
+
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args {
 		if i == 0 {
+			continue
+		}
+		if filePath == "--" {
+			for j, _ := range ignoreArgs {
+				if j > i {
+					ignoreArgs[j] = false
+				}
+			}
 			continue
 		}
 		if !ignoreArgs[i] {
