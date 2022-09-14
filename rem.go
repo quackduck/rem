@@ -30,7 +30,7 @@ Options:
    -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
-   -v/--version           print Rem version`
+   --version              print Rem version`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -51,7 +51,7 @@ func main() {
 		fmt.Println(helpMsg)
 		return
 	}
-	if hasOption, _ := argsHaveOption("version", "v"); hasOption {
+	if hasOption, _ := argsHaveOptionLong("version"); hasOption {
 		fmt.Println("Rem " + version)
 		return
 	}
