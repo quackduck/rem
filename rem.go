@@ -30,7 +30,10 @@ Options:
    -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
    -h/--help              print this help message
-   --version              print Rem version`
+   --version              print Rem version
+   -i/--interactive       ignored, used for compatibility with rm
+   -r/--recursive         ignored, used for compatibility with rm
+   -v/--verbose           ignored, used for compatibility with rm`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -129,6 +132,21 @@ func main() {
 		}
 		return
 	}
+
+	// ignored compatibility arguments
+	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOptionLong("R"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+		ignoreArgs[i] = true
+	}
+
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args {
