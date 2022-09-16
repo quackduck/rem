@@ -432,17 +432,20 @@ func promptBool(promptStr string) (yes bool) {
 }
 
 func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
-	for i, arg := range os.Args {
-		if arg == "--"+long || arg == "-"+short {
-			return true, i
-		}
+	hasOption, foundAt = argsHaveOptionExplicit("-" + short)
+	if hasOption {
+		return true, foundAt
 	}
-	return false, 0
+	return argsHaveOptionLong(long)
 }
 
 func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
+	return argsHaveOptionExplicit("--" + long)
+}
+
+func argsHaveOptionExplicit(argFull string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
-		if arg == "--"+long {
+		if arg == argFull {
 			return true, i
 		}
 	}
