@@ -154,14 +154,6 @@ func main() {
 		if i == 0 {
 			continue
 		}
-		if filePath == "--" {
-			for j, _ := range ignoreArgs {
-				if j > i {
-					ignoreArgs[j] = false
-				}
-			}
-			continue
-		}
 		if !ignoreArgs[i] {
 			trashFile(filePath)
 		}
@@ -445,6 +437,9 @@ func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
 
 func argsHaveOptionExplicit(argFull string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
+		if arg == "--" {
+			return false, 0
+		}
 		if arg == argFull {
 			return true, i
 		}
