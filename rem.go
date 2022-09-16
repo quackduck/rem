@@ -141,7 +141,7 @@ func main() {
 	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
 		ignoreArgs[i] = true
 	}
-	if hasOption, i := argsHaveOptionLong("R"); hasOption {
+	if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
 		ignoreArgs[i] = true
 	}
 	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
