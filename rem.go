@@ -154,7 +154,7 @@ func main() {
 		if i == 0 {
 			continue
 		}
-		if !ignoreArgs[i] {
+		if !ignoreArgs[i] && filepath != "--" {
 			trashFile(filePath)
 		}
 	}
