@@ -423,12 +423,21 @@ func promptBool(promptStr string) (yes bool) {
 	return true
 }
 
+// Try to find the position of the given argument, the posistioon of the first
+// instance is returned.
 func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
-	hasOption, foundAt = argsHaveOptionExplicit("-" + short)
-	if hasOption {
-		return true, foundAt
+	hasOptionShort, foundAtShort := argsHaveOptionExplicit("-" + short)
+	hasOptionLong, foundAtLong := argsHaveOptionExplicit("--" + long)
+	if hasOptionShort && hasOptionLong {
+		if foundAtLong < foundAtShort {
+			return true, foundAtLong
+		}
+		return true, foundAtShort
 	}
-	return argsHaveOptionLong(long)
+	if hasOptionShort {
+		return true, foundAtShort
+	}
+	return hasOptionLong, foundAtLong
 }
 
 func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
