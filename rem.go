@@ -154,7 +154,7 @@ func main() {
 		if i == 0 {
 			continue
 		}
-		if !ignoreArgs[i] && filepath != "--" {
+		if !ignoreArgs[i] && filePath != "--" {
 			trashFile(filePath)
 		}
 	}
@@ -423,33 +423,18 @@ func promptBool(promptStr string) (yes bool) {
 	return true
 }
 
-// Try to find the position of the given argument, the posistioon of the first
-// instance is returned.
 func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
-	hasOptionShort, foundAtShort := argsHaveOptionExplicit("-" + short)
-	hasOptionLong, foundAtLong := argsHaveOptionExplicit("--" + long)
-	if hasOptionShort && hasOptionLong {
-		if foundAtLong < foundAtShort {
-			return true, foundAtLong
+	for i, arg := range os.Args {
+		if arg == "--"+long || arg == "-"+short {
+			return true, i
 		}
-		return true, foundAtShort
 	}
-	if hasOptionShort {
-		return true, foundAtShort
-	}
-	return hasOptionLong, foundAtLong
+	return false, 0
 }
 
 func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
-	return argsHaveOptionExplicit("--" + long)
-}
-
-func argsHaveOptionExplicit(argFull string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
-		if arg == "--" {
-			return false, 0
-		}
-		if arg == argFull {
+		if arg == "--"+long {
 			return true, i
 		}
 	}
