@@ -33,10 +33,11 @@ Options:
                           used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
-   -i/--interactive       ignored, used for compatibility with rm
-   -r/-R/--recursive      ignored, used for compatibility with rm
-   -v/--verbose           ignored, used for compatibility with rm
-   --                     all arguments after this as considered files`
+   --                     all arguments after this as considered files
+
+    Rem ignores flags used by GNU rm such as -i, -r, or -v. If you want to
+    trash files that look like flags, put them after "--" to be on the safe
+    side of things.`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -144,6 +145,9 @@ func main() {
 
 	// ignored compatibility arguments
 	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+		ignoreArgs[i] = true
+	}
+	if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
 		ignoreArgs[i] = true
 	}
 	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
