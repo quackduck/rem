@@ -29,6 +29,8 @@ Options:
    -t/--set-dir <dir>     set the data dir and continue
    -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
+   -f/--force             Do not print error message on inexistant file,
+                          used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
    -i/--interactive       ignored, used for compatibility with rm
@@ -41,6 +43,7 @@ Options:
 	renameByCopyIsAllowed = true
 
 	quietMode = false
+	forceMode = false
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -100,6 +103,11 @@ func main() {
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(dataDir)
 		return
+	}
+
+	if hasOption, i := argsHaveOption("force", "f"); hasOption {
+		ignoreArgs[i] = true
+		forceMode = true
 	}
 
 	logFile = getLogFile()
@@ -198,7 +206,9 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		handleErrStr(color.YellowString(path) + " does not exist")
+		if !forceMode {
+			handleErrStr(color.YellowString(path) + " does not exist")
+		}
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
