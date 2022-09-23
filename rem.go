@@ -425,6 +425,9 @@ func promptBool(promptStr string) (yes bool) {
 
 func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
+		if arg == "--" {
+			return false, 0
+		}
 		if arg == "--"+long || arg == "-"+short {
 			return true, i
 		}
@@ -434,6 +437,9 @@ func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 
 func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
+		if arg == "--" {
+			return false, 0
+		}
 		if arg == "--"+long {
 			return true, i
 		}
