@@ -160,13 +160,21 @@ func main() {
 		ignoreArgs[i] = true
 	}
 
+	// Ignoring the first --
+	for i, arg := range os.Args {
+		if arg == "--" {
+			ignoreArgs[i] = true
+			break
+		}
+	}
+
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args {
 		if i == 0 {
 			continue
 		}
-		if !ignoreArgs[i] && filePath != "--" {
+		if !ignoreArgs[i] {
 			trashFile(filePath)
 		}
 	}
