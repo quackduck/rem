@@ -33,10 +33,11 @@ Options:
                           used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
-   -i/--interactive       ignored, used for compatibility with rm
-   -r/-R/--recursive      ignored, used for compatibility with rm
-   -v/--verbose           ignored, used for compatibility with rm
-   --                     all arguments after this as considered files`
+   --                     all arguments after this as considered files
+
+    Rem ignores flags used by GNU rm such as -i, -r, or -v. If you want to
+    trash files that look like flags, put them after "--" to be on the safe
+    side of things.`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -146,6 +147,9 @@ func main() {
 	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
 		ignoreArgs[i] = true
 	}
+	if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
+		ignoreArgs[i] = true
+	}
 	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
 		ignoreArgs[i] = true
 	}
@@ -156,13 +160,21 @@ func main() {
 		ignoreArgs[i] = true
 	}
 
+	// Ignoring the first --
+	for i, arg := range os.Args {
+		if arg == "--" {
+			ignoreArgs[i] = true
+			break
+		}
+	}
+
 	// normal case
 	ensureTrashDir()
 	for i, filePath := range os.Args {
 		if i == 0 {
 			continue
 		}
-		if !ignoreArgs[i] && filepath != "--" {
+		if !ignoreArgs[i] {
 			trashFile(filePath)
 		}
 	}
@@ -433,33 +445,24 @@ func promptBool(promptStr string) (yes bool) {
 	return true
 }
 
-// Try to find the position of the given argument, the posistioon of the first
-// instance is returned.
 func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
-	hasOptionShort, foundAtShort := argsHaveOptionExplicit("-" + short)
-	hasOptionLong, foundAtLong := argsHaveOptionExplicit("--" + long)
-	if hasOptionShort && hasOptionLong {
-		if foundAtLong < foundAtShort {
-			return true, foundAtLong
-		}
-		return true, foundAtShort
-	}
-	if hasOptionShort {
-		return true, foundAtShort
-	}
-	return hasOptionLong, foundAtLong
-}
-
-func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
-	return argsHaveOptionExplicit("--" + long)
-}
-
-func argsHaveOptionExplicit(argFull string) (hasOption bool, foundAt int) {
 	for i, arg := range os.Args {
 		if arg == "--" {
 			return false, 0
 		}
-		if arg == argFull {
+		if arg == "--"+long || arg == "-"+short {
+			return true, i
+		}
+	}
+	return false, 0
+}
+
+func argsHaveOptionLong(long string) (hasOption bool, foundAt int) {
+	for i, arg := range os.Args {
+		if arg == "--" {
+			return false, 0
+		}
+		if arg == "--"+long {
 			return true, i
 		}
 	}
