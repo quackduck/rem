@@ -48,12 +48,14 @@ flags = struct {
     forceMode              bool
     permanentMode          bool
     rmMode                 bool
+    verbose                bool
 } {
     renameByCopyIsAllowed: true,
     quietMode:             false,
     forceMode:             false,
     permanentMode:         false,
     rmMode:                false,
+    verbose:               false,
 }
 )
 
@@ -132,6 +134,11 @@ func main() {
         if hasOption, i := argsHaveOption("force", "f"); hasOption {
             ignoreArgs[i] = true
             flags.forceMode = true
+        }
+
+        if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+            ignoreArgs[i] = true
+            flags.verbose = true
         }
 
         // ignored compatibility arguments
@@ -265,7 +272,13 @@ func trashFile(path string) {
 	setLogFile(logFile)
 	// if we've reached here, trashing is complete and successful
 	// TODO: Print with quotes only if it contains spaces
-	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+    if flags.rmMode {
+        if flags.verbose {
+            fmt.Println("removed '"+path+"'")
+        }
+    } else {
+        printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+    }
 }
 
 func renameByCopyAllowed(src, dst string) error {
