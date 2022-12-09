@@ -41,10 +41,20 @@ Options:
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
-	renameByCopyIsAllowed = true
 
-	quietMode = false
-	forceMode = false
+flags = struct {
+    renameByCopyIsAllowed  bool
+    quietMode              bool
+    forceMode              bool
+    permanentMode          bool
+    rmMode                 bool
+} {
+    renameByCopyIsAllowed: true,
+    quietMode:             false,
+    forceMode:             false,
+    permanentMode:         false,
+    rmMode:                false,
+}
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -97,7 +107,7 @@ func main() {
 	}
 
 	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
-		quietMode = true
+		flags.quietMode = true
 		ignoreArgs[i] = true
 	}
 
@@ -108,7 +118,7 @@ func main() {
 
 	if hasOption, i := argsHaveOption("force", "f"); hasOption {
 		ignoreArgs[i] = true
-		forceMode = true
+		flags.forceMode = true
 	}
 
 	logFile = getLogFile()
@@ -118,7 +128,7 @@ func main() {
 		return
 	}
 	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		if quietMode {
+		if flags.quietMode {
 			emptyTrash()
 		} else {
 			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
@@ -129,7 +139,7 @@ func main() {
 		return
 	}
 	if hasOption, i := argsHaveOptionLong("disable-copy"); hasOption {
-		renameByCopyIsAllowed = false
+		flags.renameByCopyIsAllowed = false
 		ignoreArgs[i] = true
 	}
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
@@ -190,7 +200,7 @@ func restore(path string) {
 
 	fileInTrash, ok := logFile[absPath]
 	if ok { // found in log
-		if renameByCopyIsAllowed {
+		if flags.renameByCopyIsAllowed {
 			err = renameByCopyAllowed(fileInTrash, absPath)
 		} else {
 			err = os.Rename(fileInTrash, absPath)
@@ -218,14 +228,14 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		if !forceMode {
+		if !flags.forceMode {
 			handleErrStr(color.YellowString(path) + " does not exist")
 		}
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
 	path = getTimestampedPath(path, existsInLog)
-	if renameByCopyIsAllowed {
+	if flags.renameByCopyIsAllowed {
 		err = renameByCopyAllowed(path, toMoveTo)
 	} else {
 		err = os.Rename(path, toMoveTo)
@@ -489,7 +499,7 @@ func printFormattedList(a []string) {
 }
 
 func printIfNotQuiet(a ...interface{}) {
-	if !quietMode {
+	if !flags.quietMode {
 		fmt.Println(a...)
 	}
 }
