@@ -65,36 +65,31 @@ func main() {
 		fmt.Println(helpMsg)
 		return
 	}
+
 	if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 		fmt.Println(helpMsg)
-		return
-	}
-	if hasOption, _ := argsHaveOptionLong("version"); hasOption {
-		fmt.Println("Rem " + version)
-		return
-	}
-	if hasOption, i := argsHaveOptionLong("permanent"); hasOption {
-		if !(len(os.Args) > i+1) {
-			handleErrStr("not enough arguments for --permanent")
-			return
-		}
-		color.Red("Warning, permanently deleting: ")
-		printFormattedList(os.Args[i+1:])
-		if promptBool("Confirm delete?") {
-			var err error
-			for _, filePath := range os.Args[i+1:] {
-				err = permanentlyDeleteFile(filePath)
-				if err != nil {
-					fmt.Println("Could not delete " + filePath)
-					handleErr(err)
-				}
-			}
-		}
 		return
 	}
 
 	dataDir, _ = filepath.Abs(chooseDataDir())
 	ignoreArgs := make(map[int]bool, 3)
+	logFile = getLogFile()
+
+    // Always available arguments
+	if hasOption, _ := argsHaveOptionLong("version"); hasOption {
+		fmt.Println("Rem " + version)
+		return
+	}
+
+	if hasOption, i := argsHaveOptionLong("rm-mode"); hasOption {
+		flags.rmMode = true
+		ignoreArgs[i] = true
+    }
+
+	if hasOption, i := argsHaveOptionLong("permanent"); hasOption {
+		flags.permanentMode = true
+		ignoreArgs[i] = true
+    }
 
 	if hasOption, i := argsHaveOption("set-dir", "t"); hasOption {
 		if !(len(os.Args) > i+1) {
@@ -106,42 +101,21 @@ func main() {
 		ignoreArgs[i+1] = true
 	}
 
-	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
-		flags.quietMode = true
-		ignoreArgs[i] = true
-	}
-
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(dataDir)
 		return
 	}
 
-	if hasOption, i := argsHaveOption("force", "f"); hasOption {
-		ignoreArgs[i] = true
-		flags.forceMode = true
-	}
-
-	logFile = getLogFile()
-
 	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
 		printFormattedList(listFilesInTrash())
 		return
 	}
-	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		if flags.quietMode {
-			emptyTrash()
-		} else {
-			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
-			if promptBool("Confirm delete?") {
-				emptyTrash()
-			}
-		}
-		return
-	}
+
 	if hasOption, i := argsHaveOptionLong("disable-copy"); hasOption {
 		flags.renameByCopyIsAllowed = false
 		ignoreArgs[i] = true
 	}
+
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
 		if !(len(os.Args) > i+1) {
 			handleErrStr("not enough arguments for --undo")
@@ -153,21 +127,48 @@ func main() {
 		return
 	}
 
-	// ignored compatibility arguments
-	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
-		ignoreArgs[i] = true
+    // Mode specifics arguments
+    if flags.rmMode {
+        if hasOption, i := argsHaveOption("force", "f"); hasOption {
+            ignoreArgs[i] = true
+            flags.forceMode = true
+        }
+
+        // ignored compatibility arguments
+        if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+            ignoreArgs[i] = true
+        }
+        if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
+            ignoreArgs[i] = true
+        }
+        if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
+            ignoreArgs[i] = true
+        }
+        if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
+            ignoreArgs[i] = true
+        }
+        if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+            ignoreArgs[i] = true
+        }
+
+    } else {
+        if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
+            flags.quietMode = true
+            ignoreArgs[i] = true
+        }
+    }
+
+    // Empty left at the end as its behavior depens on mode specifics flags
+	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
+		if flags.quietMode || flags.forceMode {
+			emptyTrash()
+		} else {
+			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
+			if promptBool("Confirm delete?") {
+				emptyTrash()
+			}
+		}
+		return
 	}
 
 	// Ignoring the first --
@@ -178,16 +179,30 @@ func main() {
 		}
 	}
 
-	// normal case
-	ensureTrashDir()
+	// Making a list of all files to process
+    _fileList := make([]string, len(os.Args))
+    index := 0
 	for i, filePath := range os.Args {
 		if i == 0 {
 			continue
 		}
 		if !ignoreArgs[i] {
-			trashFile(filePath)
+            _fileList[index] = filePath
+            index++
 		}
 	}
+    fileList := _fileList[0:index]
+
+    // Trashing files
+    trashFileList(fileList)
+}
+
+// Trashes all the files in a list
+func trashFileList(fileList []string) {
+	ensureTrashDir()
+    for _, filePath := range fileList {
+        trashFile(filePath)
+    }
 }
 
 func restore(path string) {
