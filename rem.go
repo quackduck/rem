@@ -37,7 +37,7 @@ Options:
                           GNU rm verbose messages.
    --                     all arguments after this as considered files
 
-    Rem ignores flags used by GNU rm such as -i, -r, or -v. If you want to
+    Rem ignores flags used by GNU rm such as -i, -I, or -r. If you want to
     trash files that look like flags, put them after "--" to be on the safe
     side of things.`
 	dataDir               string
@@ -162,9 +162,6 @@ func main() {
 		ignoreArgs[i] = true
 	}
 	if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
 		ignoreArgs[i] = true
 	}
 
