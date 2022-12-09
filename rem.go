@@ -19,7 +19,7 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | --version | -v/--verbose | -l/--list]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
@@ -33,6 +33,8 @@ Options:
                           used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
+   -v/--verbose           print a message for each deleted file, compatible with
+                          GNU rm verbose messages.
    --                     all arguments after this as considered files
 
     Rem ignores flags used by GNU rm such as -i, -r, or -v. If you want to
@@ -45,6 +47,7 @@ Options:
 
 	quietMode = false
 	forceMode = false
+    verboseMode = false
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -98,6 +101,11 @@ func main() {
 
 	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
 		quietMode = true
+		ignoreArgs[i] = true
+	}
+
+	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+		verboseMode = true
 		ignoreArgs[i] = true
 	}
 
@@ -241,6 +249,9 @@ func trashFile(path string) {
 	// if we've reached here, trashing is complete and successful
 	// TODO: Print with quotes only if it contains spaces
 	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+    if quietMode && verboseMode {
+        fmt.Println("removed '"+path+"'");
+    }
 }
 
 func renameByCopyAllowed(src, dst string) error {
