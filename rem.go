@@ -218,9 +218,13 @@ func trashFileList(fileList []string) {
 
 // Permanently deletes all the files in the list
 func deleteFileList(fileList []string) {
-    color.Red("Warning, permanently deleting: ")
-    printFormattedList(fileList)
-    if promptBool("Confirm delete?") {
+    deleteOk := flags.forceMode
+    if !deleteOk {
+        color.Red("Warning, permanently deleting: ")
+        printFormattedList(fileList)
+        deleteOk = promptBool("Confirm delete?");
+    }
+    if deleteOk {
         var err error
         for _, filePath := range fileList {
             err = permanentlyDeleteFile(filePath)
