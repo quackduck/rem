@@ -85,12 +85,6 @@ with the exeption of the -q/--quiet flag. Run "rem --help" to know their usages.
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
 
 func main() {
-	if len(os.Args) == 1 {
-		handleErrStr("too few arguments")
-		fmt.Println(helpMsg)
-		return
-	}
-
 	dataDir, _ = filepath.Abs(chooseDataDir())
 	ignoreArgs := make(map[int]bool, 3)
 	logFile = getLogFile()
@@ -241,6 +235,13 @@ func main() {
 		}
 	}
 	fileList := _fileList[0:index]
+
+	// Error out if there is no file to delete now
+	if len(fileList) == 0 && !flags.forceMode {
+		handleErrStr("too few arguments")
+		fmt.Println(helpMsg)
+		return
+	}
 
 	// Trashing files
 	if flags.permanentMode {
