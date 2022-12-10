@@ -201,7 +201,11 @@ func main() {
     fileList := _fileList[0:index]
 
     // Trashing files
-    trashFileList(fileList)
+    if flags.permanentMode {
+        deleteFileList(fileList)
+    } else {
+        trashFileList(fileList)
+    }
 }
 
 // Trashes all the files in a list
@@ -209,6 +213,22 @@ func trashFileList(fileList []string) {
 	ensureTrashDir()
     for _, filePath := range fileList {
         trashFile(filePath)
+    }
+}
+
+// Permanently deletes all the files in the list
+func deleteFileList(fileList []string) {
+    color.Red("Warning, permanently deleting: ")
+    printFormattedList(fileList)
+    if promptBool("Confirm delete?") {
+        var err error
+        for _, filePath := range fileList {
+            err = permanentlyDeleteFile(filePath)
+            if err != nil {
+                fmt.Println("Could not delete " + filePath)
+                handleErr(err)
+            }
+        }
     }
 }
 
