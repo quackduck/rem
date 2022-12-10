@@ -69,12 +69,14 @@ flags = struct {
     forceMode              bool
     permanentMode          bool
     rmMode                 bool
+    interactiveMode        bool
     verbose                bool
 } {
     renameByCopyIsAllowed: true,
     quietMode:             false,
     forceMode:             false,
     permanentMode:         false,
+    interactiveMode:       false,
     rmMode:                false,
     verbose:               false,
 }
@@ -162,20 +164,23 @@ func main() {
             flags.verbose = true
         }
 
-        // ignored compatibility arguments
         if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+            flags.interactiveMode = true
             ignoreArgs[i] = true
         }
-        if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
+        if hasOption, i := argsHaveOption("interactive", "I"); hasOption {
+            flags.interactiveMode = true
             ignoreArgs[i] = true
         }
+
+        // ignored compatibility arguments
         if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
             ignoreArgs[i] = true
         }
         if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
             ignoreArgs[i] = true
         }
-        if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+        if hasOption, i := argsHaveOptionLong("one-file-system"); hasOption {
             ignoreArgs[i] = true
         }
         if hasOption, i := argsHaveOptionLong("no-preserve-root"); hasOption {
@@ -183,6 +188,11 @@ func main() {
         }
         if hasOption, i := argsHaveOptionLong("preserve-root"); hasOption {
             ignoreArgs[i] = true
+        }
+
+        // Force flag suppress interactive mode
+        if flags.forceMode {
+            flags.interactiveMode = false;
         }
 
     } else {
@@ -244,21 +254,29 @@ func main() {
 func trashFileList(fileList []string) {
 	ensureTrashDir()
     for _, filePath := range fileList {
+        deleteOk := !flags.interactiveMode
+        if !deleteOk {
+            deleteOk = promptBool("Trashing "+filePath+"?")
+        }
         trashFile(filePath)
     }
 }
 
 // Permanently deletes all the files in the list
 func deleteFileList(fileList []string) {
-    deleteOk := flags.forceMode
+    deleteOk := flags.forceMode || flags.interactiveMode
     if !deleteOk {
         color.Red("Warning, permanently deleting: ")
         printFormattedList(fileList)
-        deleteOk = promptBool("Confirm delete?");
+        deleteOk = promptBool("Confirm delete?")
     }
     if deleteOk {
         var err error
         for _, filePath := range fileList {
+            deleteOk = !flags.interactiveMode
+            if !deleteOk {
+                deleteOk = promptBool("Permanently deleting "+filePath+"?")
+            }
             err = permanentlyDeleteFile(filePath)
             if err != nil {
                 fmt.Println("Could not delete " + filePath)
