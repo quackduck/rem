@@ -19,7 +19,8 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | --version | -l/--list]
+       rem --rm-mode [oprions] [files]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
@@ -29,15 +30,32 @@ Options:
    -t/--set-dir <dir>     set the data dir and continue
    -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
-   -f/--force             Do not print error message on inexistant file,
-                          used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
+   --rm-mode              run rem in a mode with extra compatibility with
+                          GNU rm; run "rem --rm-mode --help" for more info
    --                     all arguments after this as considered files
+                          when deleting files that look like CLI flag, it is
+                          advised to place them after --`
+    helpRmMode = `rem --rm-mode runs Rem in a mode compatible with GNU rm
+This mode changes the output of rem to be quiet by default and adds
+additional options and flags.
 
-    Rem ignores flags used by GNU rm such as -i, -r, or -v. If you want to
-    trash files that look like flags, put them after "--" to be on the safe
-    side of things.`
+Usage: rem --rm-mode [oprions] <file> ...
+       rem --rm-mode [-d/--directory | --empty | -h/--help | --version | -l/--list]
+
+Oprions:
+   -f/--force             Do not print error message on inexistant file,
+                          used for compatibility with rm. Also silence prompt
+                          of --empry and --permanent
+   -v/--verbose           Print a line of logs for each deleted files
+
+Options ignored for compatibility with GNU rm:
+   -i/-I/--interactive
+   -r/-R/--recursive
+
+All the other flags and options available in non-rm mode are also available
+with the exeption of the -q/--quiet flag. Run "rem --help" to know their usages.`
 	dataDir               string
 	logFileName           = ".trash.log"
 	logFile               map[string]string
@@ -64,11 +82,6 @@ flags = struct {
 func main() {
 	if len(os.Args) == 1 {
 		handleErrStr("too few arguments")
-		fmt.Println(helpMsg)
-		return
-	}
-
-	if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 		fmt.Println(helpMsg)
 		return
 	}
@@ -131,6 +144,11 @@ func main() {
 
     // Mode specifics arguments
     if flags.rmMode {
+        if hasOption, _ := argsHaveOption("help", "h"); hasOption {
+            fmt.Println(helpRmMode)
+            return
+        }
+
         if hasOption, i := argsHaveOption("force", "f"); hasOption {
             ignoreArgs[i] = true
             flags.forceMode = true
@@ -159,6 +177,11 @@ func main() {
         }
 
     } else {
+        if hasOption, _ := argsHaveOption("help", "h"); hasOption {
+            fmt.Println(helpMsg)
+            return
+        }
+
         if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
             flags.quietMode = true
             ignoreArgs[i] = true
