@@ -53,6 +53,9 @@ Oprions:
 Options ignored for compatibility with GNU rm:
    -i/-I/--interactive
    -r/-R/--recursive
+   --one-file-system
+   --no-preserve-root
+   --preserve-root
 
 All the other flags and options available in non-rm mode are also available
 with the exeption of the -q/--quiet flag. Run "rem --help" to know their usages.`
@@ -175,6 +178,12 @@ func main() {
         if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
             ignoreArgs[i] = true
         }
+        if hasOption, i := argsHaveOptionLong("no-preserve-root"); hasOption {
+            ignoreArgs[i] = true
+        }
+        if hasOption, i := argsHaveOptionLong("preserve-root"); hasOption {
+            ignoreArgs[i] = true
+        }
 
     } else {
         if hasOption, _ := argsHaveOption("help", "h"); hasOption {
@@ -188,7 +197,7 @@ func main() {
         }
     }
 
-    // Empty left at the end as its behavior depens on mode specifics flags
+    // Empty left at the end as its behavior depends on mode specifics flags
 	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
 		if flags.quietMode || flags.forceMode {
 			emptyTrash()
