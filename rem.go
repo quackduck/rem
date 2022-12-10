@@ -19,7 +19,8 @@ var (
 	helpMsg = `Rem - Get some rem sleep knowing your files are safe
 Rem is a CLI Trash
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-       rem [-d/--directory | --empty | -h/--help | --version | -v/--verbose | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | --version | -l/--list]
+       rem --rm-mode [oprions] [files]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
@@ -29,25 +30,56 @@ Options:
    -t/--set-dir <dir>     set the data dir and continue
    -q/--quiet             enable quiet mode
    --disable-copy         if files are on a different fs, don't rename by copy
-   -f/--force             Do not print error message on inexistant file,
-                          used for compatibility with rm
    -h/--help              print this help message
    --version              print Rem version
-   -v/--verbose           print a message for each deleted file, compatible with
-                          GNU rm verbose messages.
+   --rm-mode              run rem in a mode with extra compatibility with
+                          GNU rm; run "rem --rm-mode --help" for more info
    --                     all arguments after this as considered files
+                          when deleting files that look like CLI flag, it is
+                          advised to place them after --`
+	helpRmMode = `rem --rm-mode runs Rem in a mode compatible with GNU rm
+This mode changes the output of rem to be quiet by default and adds
+additional options and flags.
 
-    Rem ignores flags used by GNU rm such as -i, -I, or -r. If you want to
-    trash files that look like flags, put them after "--" to be on the safe
-    side of things.`
-	dataDir               string
-	logFileName           = ".trash.log"
-	logFile               map[string]string
-	renameByCopyIsAllowed = true
+Usage: rem --rm-mode [oprions] <file> ...
+       rem --rm-mode [-d/--directory | --empty | -h/--help | --version | -l/--list]
 
-	quietMode = false
-	forceMode = false
-    verboseMode = false
+Oprions:
+   -f/--force             Do not print error message on inexistant file,
+                          used for compatibility with rm. Also silence prompt
+                          of --empry and --permanent
+   -v/--verbose           Print a line of logs for each deleted files
+
+Options ignored for compatibility with GNU rm:
+   -i/-I/--interactive
+   -r/-R/--recursive
+   --one-file-system
+   --no-preserve-root
+   --preserve-root
+
+All the other flags and options available in non-rm mode are also available
+with the exeption of the -q/--quiet flag. Run "rem --help" to know their usages.`
+	dataDir     string
+	logFileName = ".trash.log"
+	logFile     map[string]string
+
+	flags = struct {
+		renameByCopyIsAllowed bool
+		quietMode             bool
+		forceMode             bool
+		permanentMode         bool
+		rmMode                bool
+		interactiveMode       bool
+		verbose               bool
+	}{
+		renameByCopyIsAllowed: true,
+		quietMode:             false,
+		forceMode:             false,
+		permanentMode:         false,
+		interactiveMode:       false,
+		rmMode:                false,
+		verbose:               false,
+	}
 )
 
 // TODO: Multiple Rem instances could clobber log file. Fix using either file locks or tcp port locks.
@@ -58,36 +90,26 @@ func main() {
 		fmt.Println(helpMsg)
 		return
 	}
-	if hasOption, _ := argsHaveOption("help", "h"); hasOption {
-		fmt.Println(helpMsg)
-		return
-	}
+
+	dataDir, _ = filepath.Abs(chooseDataDir())
+	ignoreArgs := make(map[int]bool, 3)
+	logFile = getLogFile()
+
+	// Always available arguments
 	if hasOption, _ := argsHaveOptionLong("version"); hasOption {
 		fmt.Println("Rem " + version)
 		return
 	}
-	if hasOption, i := argsHaveOptionLong("permanent"); hasOption {
-		if !(len(os.Args) > i+1) {
-			handleErrStr("not enough arguments for --permanent")
-			return
-		}
-		color.Red("Warning, permanently deleting: ")
-		printFormattedList(os.Args[i+1:])
-		if promptBool("Confirm delete?") {
-			var err error
-			for _, filePath := range os.Args[i+1:] {
-				err = permanentlyDeleteFile(filePath)
-				if err != nil {
-					fmt.Println("Could not delete " + filePath)
-					handleErr(err)
-				}
-			}
-		}
-		return
+
+	if hasOption, i := argsHaveOptionLong("rm-mode"); hasOption {
+		flags.rmMode = true
+		ignoreArgs[i] = true
 	}
 
-	dataDir, _ = filepath.Abs(chooseDataDir())
-	ignoreArgs := make(map[int]bool, 3)
+	if hasOption, i := argsHaveOptionLong("permanent"); hasOption {
+		flags.permanentMode = true
+		ignoreArgs[i] = true
+	}
 
 	if hasOption, i := argsHaveOption("set-dir", "t"); hasOption {
 		if !(len(os.Args) > i+1) {
@@ -99,47 +121,21 @@ func main() {
 		ignoreArgs[i+1] = true
 	}
 
-	if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
-		quietMode = true
-		ignoreArgs[i] = true
-	}
-
-	if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
-		verboseMode = true
-		ignoreArgs[i] = true
-	}
-
 	if hasOption, _ := argsHaveOption("directory", "d"); hasOption {
 		fmt.Println(dataDir)
 		return
 	}
 
-	if hasOption, i := argsHaveOption("force", "f"); hasOption {
-		ignoreArgs[i] = true
-		forceMode = true
-	}
-
-	logFile = getLogFile()
-
 	if hasOption, _ := argsHaveOption("list", "l"); hasOption {
 		printFormattedList(listFilesInTrash())
 		return
 	}
-	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
-		if quietMode {
-			emptyTrash()
-		} else {
-			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
-			if promptBool("Confirm delete?") {
-				emptyTrash()
-			}
-		}
-		return
-	}
+
 	if hasOption, i := argsHaveOptionLong("disable-copy"); hasOption {
-		renameByCopyIsAllowed = false
+		flags.renameByCopyIsAllowed = false
 		ignoreArgs[i] = true
 	}
+
 	if hasOption, i := argsHaveOption("undo", "u"); hasOption {
 		if !(len(os.Args) > i+1) {
 			handleErrStr("not enough arguments for --undo")
@@ -151,18 +147,77 @@ func main() {
 		return
 	}
 
-	// ignored compatibility arguments
-	if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
-		ignoreArgs[i] = true
+	// Mode specifics arguments
+	if flags.rmMode {
+		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
+			fmt.Println(helpRmMode)
+			return
+		}
+
+		if hasOption, i := argsHaveOption("force", "f"); hasOption {
+			ignoreArgs[i] = true
+			flags.forceMode = true
+		}
+
+		if hasOption, i := argsHaveOption("verbose", "v"); hasOption {
+			ignoreArgs[i] = true
+			flags.verbose = true
+		}
+
+		if hasOption, i := argsHaveOption("interactive", "i"); hasOption {
+			flags.interactiveMode = true
+			ignoreArgs[i] = true
+		}
+		if hasOption, i := argsHaveOption("interactive", "I"); hasOption {
+			flags.interactiveMode = true
+			ignoreArgs[i] = true
+		}
+
+		// ignored compatibility arguments
+		if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
+			ignoreArgs[i] = true
+		}
+		if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
+			ignoreArgs[i] = true
+		}
+		if hasOption, i := argsHaveOptionLong("one-file-system"); hasOption {
+			ignoreArgs[i] = true
+		}
+		if hasOption, i := argsHaveOptionLong("no-preserve-root"); hasOption {
+			ignoreArgs[i] = true
+		}
+		if hasOption, i := argsHaveOptionLong("preserve-root"); hasOption {
+			ignoreArgs[i] = true
+		}
+
+		// Force flag suppress interactive mode
+		if flags.forceMode {
+			flags.interactiveMode = false
+		}
+
+	} else {
+		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
+			fmt.Println(helpMsg)
+			return
+		}
+
+		if hasOption, i := argsHaveOption("quiet", "q"); hasOption {
+			flags.quietMode = true
+			ignoreArgs[i] = true
+		}
 	}
-	if hasOption, i := argsHaveOption("one-file-system", "I"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("recursive", "r"); hasOption {
-		ignoreArgs[i] = true
-	}
-	if hasOption, i := argsHaveOption("recursive", "R"); hasOption {
-		ignoreArgs[i] = true
+
+	// Empty left at the end as its behavior depends on mode specifics flags
+	if hasOption, _ := argsHaveOptionLong("empty"); hasOption {
+		if flags.quietMode || flags.forceMode {
+			emptyTrash()
+		} else {
+			color.Red("Warning, permanently deleting all files in " + dataDir + "/trash")
+			if promptBool("Confirm delete?") {
+				emptyTrash()
+			}
+		}
+		return
 	}
 
 	// Ignoring the first --
@@ -173,14 +228,60 @@ func main() {
 		}
 	}
 
-	// normal case
-	ensureTrashDir()
+	// Making a list of all files to process
+	_fileList := make([]string, len(os.Args))
+	index := 0
 	for i, filePath := range os.Args {
 		if i == 0 {
 			continue
 		}
 		if !ignoreArgs[i] {
-			trashFile(filePath)
+			_fileList[index] = filePath
+			index++
+		}
+	}
+	fileList := _fileList[0:index]
+
+	// Trashing files
+	if flags.permanentMode {
+		deleteFileList(fileList)
+	} else {
+		trashFileList(fileList)
+	}
+}
+
+// Trashes all the files in a list
+func trashFileList(fileList []string) {
+	ensureTrashDir()
+	for _, filePath := range fileList {
+		deleteOk := !flags.interactiveMode
+		if !deleteOk {
+			deleteOk = promptBool("Trashing " + filePath + "?")
+		}
+		trashFile(filePath)
+	}
+}
+
+// Permanently deletes all the files in the list
+func deleteFileList(fileList []string) {
+	deleteOk := flags.forceMode || flags.interactiveMode
+	if !deleteOk {
+		color.Red("Warning, permanently deleting: ")
+		printFormattedList(fileList)
+		deleteOk = promptBool("Confirm delete?")
+	}
+	if deleteOk {
+		var err error
+		for _, filePath := range fileList {
+			deleteOk = !flags.interactiveMode
+			if !deleteOk {
+				deleteOk = promptBool("Permanently deleting " + filePath + "?")
+			}
+			err = permanentlyDeleteFile(filePath)
+			if err != nil {
+				fmt.Println("Could not delete " + filePath)
+				handleErr(err)
+			}
 		}
 	}
 }
@@ -195,7 +296,7 @@ func restore(path string) {
 
 	fileInTrash, ok := logFile[absPath]
 	if ok { // found in log
-		if renameByCopyIsAllowed {
+		if flags.renameByCopyIsAllowed {
 			err = renameByCopyAllowed(fileInTrash, absPath)
 		} else {
 			err = os.Rename(fileInTrash, absPath)
@@ -223,14 +324,14 @@ func trashFile(path string) {
 		return
 	}
 	if !exists(path) {
-		if !forceMode {
+		if !flags.forceMode {
 			handleErrStr(color.YellowString(path) + " does not exist")
 		}
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
 	path = getTimestampedPath(path, existsInLog)
-	if renameByCopyIsAllowed {
+	if flags.renameByCopyIsAllowed {
 		err = renameByCopyAllowed(path, toMoveTo)
 	} else {
 		err = os.Rename(path, toMoveTo)
@@ -245,10 +346,13 @@ func trashFile(path string) {
 	setLogFile(logFile)
 	// if we've reached here, trashing is complete and successful
 	// TODO: Print with quotes only if it contains spaces
-	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
-    if quietMode && verboseMode {
-        fmt.Println("removed '"+path+"'");
-    }
+	if flags.rmMode {
+		if flags.verbose {
+			fmt.Println("removed '" + path + "'")
+		}
+	} else {
+		printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+	}
 }
 
 func renameByCopyAllowed(src, dst string) error {
@@ -497,7 +601,7 @@ func printFormattedList(a []string) {
 }
 
 func printIfNotQuiet(a ...interface{}) {
-	if !quietMode {
+	if !flags.quietMode {
 		fmt.Println(a...)
 	}
 }
