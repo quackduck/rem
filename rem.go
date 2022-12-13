@@ -49,9 +49,9 @@ Oprions:
                           used for compatibility with rm. Also silence prompt
                           of --empry and --permanent
    -v/--verbose           Print a line of logs for each deleted files
+   -i/-I/--interactive    Promp the user before deleting or trashing files
 
 Options ignored for compatibility with GNU rm:
-   -i/-I/--interactive
    -r/-R/--recursive
    --one-file-system
    --no-preserve-root
