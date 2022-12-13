@@ -184,11 +184,6 @@ func main() {
 			ignoreArgs[i] = true
 		}
 
-		// Force flag suppress interactive mode
-		if flags.forceMode {
-			flags.interactiveMode = false
-		}
-
 	} else {
 		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 			fmt.Println(helpMsg)
