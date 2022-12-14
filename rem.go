@@ -113,7 +113,6 @@ func main() {
 		return
 	}
 
-	// Mode specifics arguments
 	if flags.rmMode {
 		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 			fmt.Println(helpRmMode)
@@ -500,7 +499,7 @@ func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 }
 
 func updateAndIgnoreIfHasOption(long string, short string, toUpdate *bool) {
-	if hasOption, i := argsHaveOption("force", "f"); hasOption {
+	if hasOption, i := argsHaveOption(long, short); hasOption {
 		if toUpdate != nil {
 			*toUpdate = true
 		}
