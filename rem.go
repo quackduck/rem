@@ -184,7 +184,7 @@ func getFilesToDelete() []string {
 	files := make([]string, len(os.Args)-1-len(ignoreArgs)) // -1 because of the first elem of os.Args
 	index := 0
 	for i, file := range os.Args[1:] {
-		if ignoreArgs[i] {
+		if ignoreArgs[i+1] { // +1 as i range from 0 to len(os.Args) - 2 but the keys in ignoreArgs starts at 1
 			continue
 		}
 		files[index] = file
