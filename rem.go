@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -54,7 +55,7 @@ Options ignored for compatibility:
    --preserve-root
 
 All flags and options available in non-rm mode are also available
-except for the -q/--quiet flag. Run "rem --help" to know their usages.`
+except for the -q/--quiet flag. Run "rem --help" for usage info.`
 	dataDir     string
 	logFileName = ".trash.log"
 	logFile     map[string]string
@@ -114,6 +115,7 @@ func main() {
 	}
 
 	if flags.rmMode {
+		flags.quiet = true
 		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 			fmt.Println(helpRmMode)
 			return
@@ -273,14 +275,16 @@ func trashFile(path string) {
 	logFile[absPath] = toMoveTo // format is path where it came from ==> path in trash
 	setLogFile(logFile)
 	// if we've reached here, trashing is complete and successful
-	// TODO: Print with quotes only if it contains spaces
 	if flags.rmMode {
 		if flags.verbose {
 			fmt.Println("removed '" + path + "'")
 		}
-	} else {
-		printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo \""+path+"\""))
+		return
 	}
+	if strings.ContainsAny(path, " \"'`\t|\\!#$&*(){}[];,<>?^~") {
+		path = "'" + path + "'"
+	}
+	printIfNotQuiet("Trashed " + color.YellowString(path) + "\nUndo using " + color.YellowString("rem --undo "+path))
 }
 
 func renameByCopyAllowed(src, dst string) error {
