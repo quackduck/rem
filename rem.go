@@ -495,7 +495,7 @@ func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 		if arg == "--" {
 			return false, 0
 		}
-		if arg == "--"+long && long != "" || arg == "-"+short && short != "" {
+		if arg == "--"+long && long != "" || (len(arg) > 1 && arg[0] == '-' && arg[1] != '-' && short != "" && strings.Contains(arg[1:], short)) {
 			return true, i
 		}
 	}
