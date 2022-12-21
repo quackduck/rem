@@ -260,7 +260,6 @@ func trashFile(path string) {
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
-	path = getTimestampedPath(path, existsInLog)
 	if flags.moveByCopyOk {
 		err = renameByCopyAllowed(path, toMoveTo)
 	} else {
