@@ -392,11 +392,6 @@ func exists(path string) bool {
 	return !(os.IsNotExist(err))
 }
 
-func existsInLog(elem string) bool {
-	_, alreadyExists := logFile[elem]
-	return alreadyExists
-}
-
 func ensureTrashDir() {
 	i, _ := os.Stat(dataDir + "/trash")
 	if !exists(dataDir + "/trash") {
