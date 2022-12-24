@@ -130,7 +130,8 @@ func main() {
 		updateAndIgnoreIfHasOption("recursive", "r", nil)
 		updateAndIgnoreIfHasOption("", "R", nil)
 		updateAndIgnoreIfHasOption("one-file-system", "", nil)
-		updateAndIgnoreIfHasOption("-no-preserve-root", "preserve-root", nil) // short one actually used as a long option using a - at the start
+		updateAndIgnoreIfHasOption("preserve-root", "", nil)
+		updateAndIgnoreIfHasOption("no-preserve-root", "", nil)
 	} else {
 		if hasOption, _ := argsHaveOption("help", "h"); hasOption {
 			fmt.Println(helpMsg)
@@ -495,7 +496,7 @@ func argsHaveOption(long string, short string) (hasOption bool, foundAt int) {
 		if arg == "--" {
 			return false, 0
 		}
-		if arg == "--"+long && long != "" || arg == "-"+short && short != "" {
+		if long != "" && arg == "--"+long || (short != "" && len(arg) > 1 && arg[0] == '-' && arg[1] != '-' && strings.Contains(arg[1:], short)) {
 			return true, i
 		}
 	}
