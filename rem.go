@@ -261,7 +261,6 @@ func trashFile(path string) {
 		return
 	}
 	toMoveTo = getTimestampedPath(toMoveTo, exists)
-	path = getTimestampedPath(path, existsInLog)
 	if flags.moveByCopyOk {
 		err = renameByCopyAllowed(path, toMoveTo)
 	} else {
@@ -273,7 +272,14 @@ func trashFile(path string) {
 	}
 
 	absPath, _ := filepath.Abs(path)
-	logFile[absPath] = toMoveTo // format is path where it came from ==> path in trash
+
+	// make sure there are no conflicts in the log
+	timestamped := getTimestampedPath(absPath, existsInLog)
+
+	if timestamped != absPath {
+		printIfNotQuiet("To avoid conflicts, " + color.YellowString(filepath.Base(absPath)) + " will now be called " + color.YellowString(filepath.Base(timestamped)))
+	}
+	logFile[timestamped] = toMoveTo // format is path where it came from ==> path in trash
 	setLogFile(logFile)
 	// if we've reached here, trashing is complete and successful
 	if flags.rmMode {
@@ -325,9 +331,6 @@ func getTimestampedPath(path string, existsFunc func(string) bool) string {
 			}
 			path = oldPath + " " + strconv.FormatInt(rand.Int63(), 10) // add random stuff at the end
 		}
-	}
-	if i != 0 {
-		printIfNotQuiet("To avoid conflicts, " + color.YellowString(oldPath) + " will now be called " + color.YellowString(path))
 	}
 	return path
 }
