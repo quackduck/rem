@@ -62,7 +62,8 @@ brew uninstall rem
 
 ```text
 Usage: rem [-t/--set-dir <dir>] [--disable-copy] [--permanent | -u/--undo] <file> ...
-       rem [-d/--directory | --empty | -h/--help | -v/--version | -l/--list]
+       rem [-d/--directory | --empty | -h/--help | --version | -l/--list]
+       rem --rm-mode [options] [files]
 Options:
    -u/--undo              restore a file
    -l/--list              list files in trash
@@ -71,9 +72,12 @@ Options:
    -d/--directory         show path to the data dir
    -t/--set-dir <dir>     set the data dir and continue
    -q/--quiet             enable quiet mode
-   --disable-copy         if files are on a different fs, don't rename by copy
+   --disable-copy         if files are on a different fs, don't move by copying
    -h/--help              print this help message
-   -v/--version           print Rem version
+   --version              print Rem version
+   --rm-mode              enable GNU rm compatibility mode
+                          run "rem --rm-mode --help" for more info
+   --                     all arguments after this are considered files
 ```
 
 Rem stores its data at `$XDG_DATA_HOME/rem` or `.local/share/rem` by default. Alternatively, set the data directory using `$REM_TRASH` or with the `-d` option.
